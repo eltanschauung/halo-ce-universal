@@ -523,6 +523,9 @@ static void rasterizer_sort_external(
 		sizeof(*transparent_geometry_group_sorted_indices),
 		group_sorted_indices_cmpfn);
 
+	rasterizer_transparent_geometry_order_enclosures(
+		transparent_geometry_group_sorted_indices, transparent_geometry_group_count);
+
 	for (group_index = 0; group_index<transparent_geometry_group_count; group_index++)
 	{
 		transparent_geometry_groups[transparent_geometry_group_sorted_indices[group_index]].sorted_index = group_index;

@@ -22,6 +22,7 @@ enum
 
 long rasterizer_transparent_geometry_model_begin(void);
 void rasterizer_transparent_geometry_model_end(long first_group);
+void rasterizer_transparent_geometry_order_enclosures(short *order, long count);
 
 void rasterizer_transparent_geometry_groups_begin(
 	void);

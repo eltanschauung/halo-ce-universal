@@ -46,6 +46,7 @@ typedef unsigned char byte,boolean;
 typedef unsigned short word;
 typedef float real;
 typedef struct {float i,j;} real_vector2d;
+typedef struct {float i,j,k;} real_vector3d;
 typedef struct {float x,y,z;} real_point3d;
 typedef struct {struct {float i,j,k;} n;float d;} real_plane3d;
 typedef struct {float red,green,blue;} real_rgb_color;
@@ -57,6 +58,12 @@ struct tag_block {long count;void *address,*definition;};
 #define TEST_FLAG(f,b) (((f)&FLAG(b))!=0)
 #define SET_FLAG(f,b,v) ((v)?((f)|=FLAG(b)):((f)&=~FLAG(b)))
 #define MAX(a,b) ((a)>(b)?(a):(b))
+#define MIN(a,b) ((a)<(b)?(a):(b))
+#define RASTERIZER_MAXIMUM_TRANSPARENT_GEOMETRY_GROUPS 384
+#define BIT_VECTOR_SIZE_IN_LONGS(n) (((n)+31)/32)
+#define BIT_VECTOR_SET_FLAG(v,b,s) SET_FLAG((v)[(b)/32],(b)%32,s)
+#define BIT_VECTOR_TEST_FLAG(v,b) TEST_FLAG((v)[(b)/32],(b)%32)
+static struct {struct {real_point3d position;} camera;} global_window_parameters;
 #define CHECK(c) do {if(!(c)){fprintf(stderr,"FAIL %d: %s\n",__LINE__,#c);exit(1);}}while(0)
 #define match_assert(file,line,c) CHECK(c)
 struct test_buffer {byte *data;};
@@ -296,8 +303,13 @@ def main():
     unit+=HARNESS
     core=(ROOT/'source/rasterizer/rasterizer_transparent_geometry.c').read_text()
     unit+=block(core,'long rasterizer_transparent_geometry_model_begin(')+'\n'
+    math=(ROOT/'source/math/real_math.h').read_text()
+    unit+=block(math,'struct real_matrix4x3\n')+';\ntypedef struct real_matrix4x3 real_matrix4x3;\n'
+    unit+=block((ROOT/'source/math/matrix_math.c').read_text(),'real_point3d *matrix4x3_transform_point(')+'\n'
     unit+=(ROOT/'source/rasterizer/rasterizer_transparent_enclosure.h').read_text()+'\n'
     for marker in ['static boolean transparent_group_encloses(', 'void rasterizer_transparent_geometry_model_end(',
+                   'static boolean transparent_enclosure_world_bounds(', 'static short transparent_plane_enclosure_order(',
+                   'static boolean transparent_apply_plane_dependencies(', 'void rasterizer_transparent_geometry_order_enclosures(',
                    'static DWORD transparent_glass_cull_mode(', 'static void transparent_enclosure_draw_back(']:
         unit+=block(source,marker)+'\n'
     # Production dispatch/pending/link code, with only the material body replaced

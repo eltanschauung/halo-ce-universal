@@ -938,6 +938,132 @@ void rasterizer_transparent_geometry_model_end(long first_group)
 	glass->previous_group_presorted_index = rasterizer_transparent_geometry_get_group_presorted_index(energy);
 }
 
+static boolean transparent_enclosure_world_bounds(
+	struct transparent_geometry_group const *glass, real bounds[2][3])
+{
+	struct vertex_buffer const *vertices = glass->vertex_buffer;
+	byte *data = NULL;
+	long i, k, stride;
+	boolean valid = TRUE;
+	if (!vertices || !vertices->hardware_format || vertices->offset ||
+		vertices->count < 4 || vertices->count > 64 || !glass->node_matrices || glass->node_matrix_count != 1 ||
+		(vertices->type != _rasterizer_vertex_type_model_compressed && vertices->type != _rasterizer_vertex_type_model_uncompressed))
+		return FALSE;
+	stride = rasterizer_geometry_get_vertex_size(vertices->type);
+	IDirect3DVertexBuffer8_Lock(vertices->hardware_format, 0, 0, &data, D3DLOCK_READONLY);
+	if (!data) valid = FALSE;
+	for (i = 0; valid && i < vertices->count; ++i)
+	{
+		real_point3d world;
+		real const *p = (real const *)&world;
+		matrix4x3_transform_point(glass->node_matrices, (real_point3d const *)(data + i * stride), &world);
+		for (k = 0; k < 3; ++k)
+		{
+			if (!(p[k] > -1000000.0f && p[k] < 1000000.0f)) { valid = FALSE; break; }
+			bounds[0][k] = i ? MIN(bounds[0][k], p[k]) : p[k];
+			bounds[1][k] = i ? MAX(bounds[1][k], p[k]) : p[k];
+		}
+	}
+	IDirect3DVertexBuffer8_Unlock(vertices->hardware_format);
+	return valid;
+}
+
+/* The supplied BSP plane is useful only when the whole closed shell lies on
+ * one side. A surface touching the shell's base is allowed within float error;
+ * intersecting geometry and cameras on the plane retain the centroid order. */
+static short transparent_plane_enclosure_order(
+	struct transparent_geometry_group const *surface, real const bounds[2][3])
+{
+	real_plane3d const *plane = &surface->plane;
+	real const *normal = (real const *)&plane->n;
+	real const *camera = (real const *)&global_window_parameters.camera.position;
+	real low = -plane->d, high = low, distance = low, length = 0, epsilon;
+	long k;
+	short side;
+	if (!surface->shader || surface->shader->base.type != _shader_type_transparent_glass ||
+		surface->object_index || surface->source_object_index || surface->node_matrix_count || surface->effect_type ||
+		surface->active_camouflage_transparent_source_object_index || surface->cortana_hack ||
+		surface->previous_group_presorted_index != NONE || surface->next_group_presorted_index != NONE ||
+		!TEST_FLAG(surface->geometry_flags, _rasterizer_geometry_no_sort_bit) ||
+		(surface->geometry_flags & ~(FLAG(_rasterizer_geometry_no_sort_bit) | FLAG(_rasterizer_geometry_no_fog_bit) |
+			FLAG(_rasterizer_geometry_atmospheric_fog_but_no_planar_fog_bit))) ||
+		!(plane->d > -1000000.0f && plane->d < 1000000.0f)) return 0;
+	if (TEST_FLAG(((struct shader_transparent_glass_definition const *)surface->shader)->flags, _shader_transparent_glass_flag_decal_bit) ||
+		((struct shader_transparent_glass_definition const *)surface->shader)->reflection_type == _shader_transparent_glass_reflection_type_dynamic_mirror) return 0;
+	for (k = 0; k < 3; ++k)
+	{
+		if (!(normal[k] >= -1.001f && normal[k] <= 1.001f)) return 0;
+		if (!(camera[k] > -1000000.0f && camera[k] < 1000000.0f)) return 0;
+		length += normal[k] * normal[k];
+		low += normal[k] * bounds[normal[k] < 0 ? 1 : 0][k];
+		high += normal[k] * bounds[normal[k] < 0 ? 0 : 1][k];
+		distance += normal[k] * camera[k];
+	}
+	if (!(length > 0.998f && length < 1.002f)) return 0;
+	epsilon = 0.0001f + 0.0000005f * fabsf(plane->d);
+	side = low >= -epsilon && high > epsilon ? 1 : high <= epsilon && low < -epsilon ? -1 : 0;
+	if (!side || !(fabsf(distance) > epsilon)) return 0;
+	return (distance > 0) == (side > 0) ? -1 : 1; /* surface before/after enclosure */
+}
+
+/* Stable topological ordering, separate from qsort's transitive depth key.
+ * Do not publish a partial result if several planes impose a cycle. */
+static boolean transparent_apply_plane_dependencies(
+	short *order, long count,
+	unsigned long const before[][BIT_VECTOR_SIZE_IN_LONGS(RASTERIZER_MAXIMUM_TRANSPARENT_GEOMETRY_GROUPS)])
+{
+	word incoming[RASTERIZER_MAXIMUM_TRANSPARENT_GEOMETRY_GROUPS] = {0};
+	boolean emitted[RASTERIZER_MAXIMUM_TRANSPARENT_GEOMETRY_GROUPS] = {0};
+	short result[RASTERIZER_MAXIMUM_TRANSPARENT_GEOMETRY_GROUPS];
+	long i, j, out;
+	for (i = 0; i < count; ++i)
+		for (j = 0; j < count; ++j)
+			if (BIT_VECTOR_TEST_FLAG(before[i], j)) ++incoming[j];
+	for (out = 0; out < count; ++out)
+	{
+		short next = NONE;
+		for (i = 0; i < count; ++i)
+			if (!emitted[order[i]] && !incoming[order[i]]) { next = order[i]; break; }
+		if (next == NONE) return FALSE;
+		result[out] = next;
+		emitted[next] = TRUE;
+		for (j = 0; j < count; ++j)
+			if (BIT_VECTOR_TEST_FLAG(before[next], j)) --incoming[j];
+	}
+	memcpy(order, result, count * sizeof(*order));
+	return TRUE;
+}
+
+void rasterizer_transparent_geometry_order_enclosures(short *order, long count)
+{
+	unsigned long before[RASTERIZER_MAXIMUM_TRANSPARENT_GEOMETRY_GROUPS]
+		[BIT_VECTOR_SIZE_IN_LONGS(RASTERIZER_MAXIMUM_TRANSPARENT_GEOMETRY_GROUPS)] = {{0}};
+	boolean constrained = FALSE;
+	long i, j;
+	if (count < 3 || count > RASTERIZER_MAXIMUM_TRANSPARENT_GEOMETRY_GROUPS) return;
+	for (i = 0; i < count; ++i)
+	{
+		struct transparent_geometry_group const *glass = rasterizer_transparent_geometry_get_group_from_presorted_index((short)i);
+		real bounds[2][3];
+		short energy = glass->previous_group_presorted_index;
+		if (!TEST_FLAG(glass->geometry_flags, _rasterizer_geometry_glass_front_bit) || energy < 0 || energy >= count ||
+			!transparent_enclosure_world_bounds(glass, bounds)) continue;
+		for (j = 0; j < count; ++j)
+		{
+			short relation;
+			if (j == i || j == energy) continue;
+			relation = transparent_plane_enclosure_order(rasterizer_transparent_geometry_get_group_from_presorted_index((short)j), bounds);
+			if (!relation) continue;
+			/* Both queued packets dispatch the complete enclosure. Constrain
+			 * both, so a duplicate packet cannot trigger an early draw. */
+			BIT_VECTOR_SET_FLAG(before[relation < 0 ? j : i], relation < 0 ? i : j, TRUE);
+			BIT_VECTOR_SET_FLAG(before[relation < 0 ? j : energy], relation < 0 ? energy : j, TRUE);
+			constrained = TRUE;
+		}
+	}
+	if (constrained) transparent_apply_plane_dependencies(order, count, before);
+}
+
 static DWORD transparent_glass_cull_mode(
 	struct transparent_geometry_group const *group, word flags)
 {
