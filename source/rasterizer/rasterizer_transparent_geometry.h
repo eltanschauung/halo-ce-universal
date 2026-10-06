@@ -12,6 +12,17 @@ Narrow cross-translation-unit interface owned by RASTERIZER_TRANSPARENT_GEOMETRY
 
 struct transparent_geometry_group;
 
+/* Renderer-only flags; no tag or persistent-state layout changes. */
+enum
+{
+	_rasterizer_geometry_enclosed_energy_bit = 28,
+	_rasterizer_geometry_glass_front_bit = 29,
+	_rasterizer_geometry_glass_back_bit = 30,
+};
+
+long rasterizer_transparent_geometry_model_begin(void);
+void rasterizer_transparent_geometry_model_end(long first_group);
+
 void rasterizer_transparent_geometry_groups_begin(
 	void);
 void rasterizer_transparent_geometry_groups_end(
