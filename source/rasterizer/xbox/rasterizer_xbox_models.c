@@ -527,6 +527,7 @@ static short transparent_geometry_cached_node_matrix_count = 0;
 static real_matrix4x3 const *transparent_geometry_cached_node_matrices = NULL;
 static struct transparent_geometry_group immediate_transparent_geometry_group = {0};
 static struct rasterizer_model_begin_parameters const *local_parameters = NULL;
+static long local_first_transparent_group = 0;
 static boolean local_parameters_queued_flag = FALSE;
 static short local_model_effect_type = 0;
 static boolean local_sky_flag = FALSE;
@@ -617,6 +618,7 @@ void _rasterizer_model_end(
 			rasterizer_set_stencil_mode(RASTERIZER_STENCIL_MODE_REJECT);
 			rasterizer_set_frustum_z(0.0f, 0.0f);
 		}
+		rasterizer_transparent_geometry_model_end(local_first_transparent_group);
 		local_parameters = NULL;
 	}
 
@@ -649,6 +651,7 @@ void _rasterizer_model_begin(
 		}
 
 		local_parameters = parameters;
+		local_first_transparent_group = rasterizer_transparent_geometry_model_begin();
 		local_parameters_queued_flag = FALSE;
 		local_do_not_change_z_stencil_states =
 			do_not_change_z_stencil_states;
