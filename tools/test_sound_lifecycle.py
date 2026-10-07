@@ -36,6 +36,7 @@ PRELUDE = r'''
 #include <stdlib.h>
 typedef float real;
 typedef int boolean;
+#define NUMBEROF(a) (sizeof(a) / sizeof((a)[0]))
 #define NONE (-1)
 #define TRUE 1
 #define FALSE 0

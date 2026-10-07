@@ -1648,6 +1648,30 @@ serial, which then took only the checkpoint's registers). */
 static unsigned long long constants_checkpoint_serial;
 static unsigned long constants_checkpoint_first = XGPU_VERTEX_CONSTANT_COUNT, constants_checkpoint_last;
 
+static void constants_serial_reset(void)
+{
+	unsigned long index;
+	struct program_entry *entry;
+
+	/* Start a new sequence before incrementing past ULLONG_MAX. Every
+	register is newer than every cached program, including registers that
+	have not changed recently; an old program may still hold stale values. */
+	constants_serial = 1;
+	constants_checkpoint_serial = 0;
+	constants_checkpoint_first = XGPU_VERTEX_CONSTANT_COUNT;
+	constants_checkpoint_last = 0;
+	for (index = 0; index < XGPU_VERTEX_CONSTANT_COUNT; index++)
+		constant_serials[index] = constants_serial;
+	for (index = 0; index < PROGRAM_BUCKETS; index++)
+	{
+		for (entry = program_buckets[index]; entry; entry = entry->next)
+		{
+			entry->constants_serial = 0;
+			entry->model_lights_serial = 0;
+		}
+	}
+}
+
 static void constants_store(unsigned long first, const void *data, unsigned long count)
 {
 	const float (*values)[4] = data;
@@ -1657,6 +1681,8 @@ static void constants_store(unsigned long first, const void *data, unsigned long
 	{
 		if (memcmp(device.constants[first + index], values[index], sizeof(device.constants[0])))
 		{
+			if (constants_serial == ULLONG_MAX)
+				constants_serial_reset();
 			memcpy(device.constants[first + index], values[index], sizeof(device.constants[0]));
 			constant_serials[first + index] = ++constants_serial;
 			constant_log[constants_serial % CONSTANT_LOG_SIZE] = (unsigned char)(first + index);
@@ -3490,7 +3516,7 @@ static struct program_entry *prepare_draw(BOOL immediate)
 	{
 		unsigned long first = entry->constant_count, last = 0, index;
 
-		if (entry->constants_serial == constants_checkpoint_serial &&
+		if (entry->constants_serial && entry->constants_serial == constants_checkpoint_serial &&
 			constants_checkpoint_last < entry->constant_count)
 		{
 			if (constants_checkpoint_first <= constants_checkpoint_last)
@@ -3499,12 +3525,14 @@ static struct program_entry *prepare_draw(BOOL immediate)
 				last = constants_checkpoint_last;
 			}
 		}
-		else if (constants_serial - entry->constants_serial <= XGPU_VERTEX_CONSTANT_COUNT)
+		else if (entry->constants_serial &&
+			constants_serial - entry->constants_serial <= XGPU_VERTEX_CONSTANT_COUNT)
 		{
 			unsigned long long serial;
 
-			for (serial = entry->constants_serial + 1; serial <= constants_serial; serial++)
+			for (serial = entry->constants_serial; serial != constants_serial; )
 			{
+				serial++;
 				index = constant_log[serial % CONSTANT_LOG_SIZE];
 				if (index >= entry->constant_count)
 					continue;
