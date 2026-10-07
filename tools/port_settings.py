@@ -61,6 +61,8 @@ SCREENS = {
              "Horizontal view in degrees at 16:9. Default uses\nthe authored view; scoped views keep their zoom.", None),
             ("VIEWMODEL FOV:", "display.viewmodel_fov", [("SAME", "0")] + [(str(n), str(n)) for n in range(80, 151, 5)],
              "Weapon and hands field of view at 16:9. Same\nfollows the current world view, including zoom.", None),
+            ("VIEWMODELS:", "display.viewmodel_visible", ON_OFF,
+             "Show your first-person weapon and hands. Hiding\nthem leaves firing, sound and world lights active.", None),
             ("FRAME RATE LIMIT:", "display.max_fps",
              [("AUTO", "0"), ("30", "30"), ("60", "60"), ("120", "120"), ("144", "144"), ("165", "165"),
               ("240", "240"), ("NONE", "-1")],
