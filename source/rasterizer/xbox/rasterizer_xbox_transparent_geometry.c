@@ -885,6 +885,105 @@ static void transparent_geometry_layer_draw(
 	return;
 }
 
+#include "rasterizer/rasterizer_transparent_enclosure.h"
+
+static boolean transparent_group_encloses(
+	struct transparent_geometry_group const *glass,
+	struct transparent_geometry_group const *energy)
+{
+	struct vertex_buffer const *outer = glass->vertex_buffer, *inner = energy->vertex_buffer;
+	struct triangle_buffer const *triangles = glass->triangle_buffer;
+	byte *outer_data = NULL, *inner_data = NULL, *index_data = NULL;
+	long outer_stride, inner_stride;
+	boolean result = FALSE;
+	if (!outer || !inner || !triangles || !outer->hardware_format || !inner->hardware_format ||
+		!triangles->hardware_format || outer->offset || inner->offset ||
+		(outer->type != _rasterizer_vertex_type_model_compressed && outer->type != _rasterizer_vertex_type_model_uncompressed) ||
+		(inner->type != _rasterizer_vertex_type_model_compressed && inner->type != _rasterizer_vertex_type_model_uncompressed) ||
+		(triangles->type != _triangle_buffer_type_triangles && triangles->type != _triangle_buffer_type_precompiled_strip) ||
+		glass->first_triangle_index || glass->triangle_count != triangles->count)
+		return FALSE;
+	outer_stride = rasterizer_geometry_get_vertex_size(outer->type);
+	inner_stride = rasterizer_geometry_get_vertex_size(inner->type);
+	IDirect3DVertexBuffer8_Lock(outer->hardware_format, 0, 0, &outer_data, D3DLOCK_READONLY);
+	IDirect3DVertexBuffer8_Lock(inner->hardware_format, 0, 0, &inner_data, D3DLOCK_READONLY);
+	IDirect3DIndexBuffer8_Lock(triangles->hardware_format, 0, 0, &index_data, D3DLOCK_READONLY);
+	result = rasterizer_transparent_encloses(outer_data, outer->count, outer_stride,
+		(word const *)index_data, triangles->count, triangles->type == _triangle_buffer_type_precompiled_strip,
+		inner_data, inner->count, inner_stride);
+	IDirect3DIndexBuffer8_Unlock(triangles->hardware_format);
+	IDirect3DVertexBuffer8_Unlock(inner->hardware_format);
+	IDirect3DVertexBuffer8_Unlock(outer->hardware_format);
+	return result;
+}
+
+void rasterizer_transparent_geometry_model_end(long first_group)
+{
+	long end = rasterizer_transparent_geometry_model_begin(), i;
+	struct transparent_geometry_group *glass = NULL, *energy = NULL;
+	/* With other transparent parts, authored links, skinning or effects,
+	 * the enclosure's relationship is ambiguous: retain the ordinary sort. */
+	if (first_group < 0 || end - first_group != 2) return;
+	for (i = first_group; i < end; ++i)
+	{
+		struct transparent_geometry_group *group = rasterizer_transparent_geometry_get_group_from_presorted_index((short)i);
+		if (!group->shader || group->node_matrix_count != 1 || group->effect_type != _render_model_effect_type_none ||
+			group->previous_group_presorted_index != NONE || group->next_group_presorted_index != NONE || group->cortana_hack ||
+			(group->geometry_flags & ~(FLAG(_rasterizer_geometry_no_fog_bit) | FLAG(_rasterizer_geometry_atmospheric_fog_but_no_planar_fog_bit)))) return;
+		if (group->shader->base.type == _shader_type_transparent_glass)
+		{
+			struct shader_transparent_glass_definition const *material = (void const *)group->shader;
+			if (glass || !TEST_FLAG(material->flags, _shader_transparent_glass_flag_two_sided_bit) ||
+				TEST_FLAG(material->flags, _shader_transparent_glass_flag_decal_bit) ||
+				material->reflection_type == _shader_transparent_glass_reflection_type_dynamic_mirror) return;
+			glass = group;
+		}
+		else if (group->shader->base.type == _shader_type_transparent_generic)
+		{
+			struct shader_transparent_generic const *material = &((struct shader_transparent_generic_definition const *)group->shader)->generic;
+			if (energy || material->flags != FLAG(_shader_transparent_flag_two_sided_bit) ||
+				TEST_FLAG(group->shader->base.radiosity.flags, _shader_radiosity_FILTHY_transparent_lit_bit) ||
+				material->framebuffer_blend_function != _framebuffer_blend_function_add ||
+				material->framebuffer_fade_mode != _framebuffer_fade_mode_none || material->extra_layers.count ||
+				material->lens_flare.index != NONE) return;
+			energy = group;
+		}
+		else return;
+	}
+	if (!glass || !energy || glass->object_index != energy->object_index ||
+		glass->node_matrices != energy->node_matrices || !transparent_group_encloses(glass, energy)) return;
+	/* Keep the enclosure together at the shell's original sort depth. The
+	 * back pass uses a stack packet, so no extra queue slot is consumed. */
+	SET_FLAG(glass->geometry_flags, _rasterizer_geometry_glass_front_bit, TRUE);
+	SET_FLAG(energy->geometry_flags, _rasterizer_geometry_enclosed_energy_bit, TRUE);
+	energy->z_sort = glass->z_sort;
+	energy->next_group_presorted_index = rasterizer_transparent_geometry_get_group_presorted_index(glass);
+	glass->previous_group_presorted_index = rasterizer_transparent_geometry_get_group_presorted_index(energy);
+}
+
+static DWORD transparent_glass_cull_mode(
+	struct transparent_geometry_group const *group, word flags)
+{
+	if (TEST_FLAG(group->geometry_flags, _rasterizer_geometry_glass_back_bit)) return D3DCULL_CW;
+	if (TEST_FLAG(group->geometry_flags, _rasterizer_geometry_glass_front_bit)) return D3DCULL_CCW;
+	return TEST_FLAG(flags, _shader_transparent_glass_flag_two_sided_bit) ? D3DCULL_NONE : D3DCULL_CCW;
+}
+
+static void transparent_enclosure_draw_back(
+	struct transparent_geometry_group const *energy)
+{
+	if (TEST_FLAG(energy->geometry_flags, _rasterizer_geometry_enclosed_energy_bit))
+	{
+		struct transparent_geometry_group back = *(struct transparent_geometry_group *)
+			rasterizer_transparent_geometry_get_group_from_presorted_index(energy->next_group_presorted_index);
+		SET_FLAG(back.geometry_flags, _rasterizer_geometry_glass_front_bit, FALSE);
+		SET_FLAG(back.geometry_flags, _rasterizer_geometry_glass_back_bit, TRUE);
+		back.previous_group_presorted_index = back.next_group_presorted_index = NONE;
+		back.sorted_index = NONE;
+		rasterizer_transparent_geometry_group_draw(&back, TRUE);
+	}
+}
+
 void rasterizer_transparent_geometry_group_draw__internal(
 	struct transparent_geometry_group const *group,
 	boolean has_lightmap)
@@ -1035,6 +1134,8 @@ void rasterizer_transparent_geometry_group_draw(
 				rasterizer_transparent_geometry_get_group_from_presorted_index(
 					group->previous_group_presorted_index),
 				dirty);
+
+		transparent_enclosure_draw_back(group);
 
 		if (rasterizer_debug_options.debug_transparent_geometry_enabled)
 		{
@@ -2838,9 +2939,7 @@ void rasterizer_transparent_geometry_group_draw(
 								SetTextureStageStateSmart(0, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
 								SetRenderStateSmart(
 									D3DRS_CULLMODE,
-									TEST_FLAG(glass->flags,
-										_shader_transparent_glass_flag_two_sided_bit) ?
-										D3DCULL_NONE : D3DCULL_CCW);
+									transparent_glass_cull_mode(group, glass->flags));
 								SetRenderStateSmart(
 									D3DRS_COLORWRITEENABLE,
 									D3DCOLORWRITEENABLE_RED|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_BLUE);
@@ -2982,9 +3081,7 @@ void rasterizer_transparent_geometry_group_draw(
 
 								SetRenderStateSmart(
 									D3DRS_CULLMODE,
-									TEST_FLAG(glass->flags,
-										_shader_transparent_glass_flag_two_sided_bit) ?
-										D3DCULL_NONE : D3DCULL_CCW);
+									transparent_glass_cull_mode(group, glass->flags));
 								SetRenderStateSmart(
 									D3DRS_COLORWRITEENABLE,
 									D3DCOLORWRITEENABLE_RED|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_BLUE);
@@ -3140,9 +3237,7 @@ void rasterizer_transparent_geometry_group_draw(
 								SetTextureStageStateSmart(1, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
 								SetRenderStateSmart(
 									D3DRS_CULLMODE,
-									TEST_FLAG(glass->flags,
-										_shader_transparent_glass_flag_two_sided_bit) ?
-										D3DCULL_NONE : D3DCULL_CCW);
+									transparent_glass_cull_mode(group, glass->flags));
 								SetRenderStateSmart(
 									D3DRS_COLORWRITEENABLE,
 									D3DCOLORWRITEENABLE_RED|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_BLUE);

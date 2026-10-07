@@ -166,6 +166,11 @@ static short transparent_geometry_next_group_sorted_index = 0;
 
 /* ---------- public code */
 
+long rasterizer_transparent_geometry_model_begin(void)
+{
+	return transparent_geometry_group_count;
+}
+
 boolean rasterizer_transparent_geometry_initialize(
 	void)
 {
