@@ -4680,6 +4680,9 @@ void halo_screen_anti_alias(short x0, short y0, short x1, short y1)
 
 /* ---------- presentation */
 
+/* Android's guest SDL bridge has no surface/PNG or filesystem/time APIs.
+ * Keep keyboard PNG capture in the desktop ports where SDL owns the data. */
+#ifndef HALO_ANDROID
 static void write_key_screenshot(struct render_target_entry *target)
 {
 	char directory[512], path[640], timestamp[32], filename[64];
@@ -4784,6 +4787,8 @@ failed:
 		SDL_DestroySurface(surface);
 }
 
+#endif
+
 static void write_screenshot(struct render_target_entry *target)
 {
 	const char *directory = *config_string("debug.screenshot_directory") ?
@@ -4856,8 +4861,10 @@ void WINAPI D3DDevice_Present(CONST RECT *source_rectangle, CONST RECT *destinat
 		render_target_resolve(&back_buffer->target);
 		if (screenshot_every > 0 && device.frame % (unsigned long)screenshot_every == 0)
 			write_screenshot(back_buffer);
+#ifndef HALO_ANDROID
 		if (platform_screenshot_take_request())
 			write_key_screenshot(back_buffer);
+#endif
 
 		platform_video_drawable_size(&window_width, &window_height);
 		/* letterbox to the back buffer's aspect ratio */
