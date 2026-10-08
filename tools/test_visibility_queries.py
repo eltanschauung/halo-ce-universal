@@ -408,6 +408,7 @@ def main():
     p.add_argument('--cc', default='clang')
     p.add_argument('--source', type=Path, default=ROOT / 'port/linux/src/d3d8_gl.c')
     p.add_argument('--benchmark-only', action='store_true')
+    p.add_argument('--desktop-only', action='store_true', help='validate desktop queries without the Android frame-snapshot pipeline')
     args = p.parse_args()
     source = args.source.read_text()
     definitions = source[source.index('#define VISIBILITY_TEST_SLOTS'):source.index('struct gl_device\n')]
@@ -416,7 +417,7 @@ def main():
     # Compile the production initialization statements, including buffer unbinding.
     init = source[source.index('\tglGenQueries(VISIBILITY_TEST_SLOTS, device.queries);'):source.index('\n\t{\n\t\tlong every = config_integer("debug.gpu_flush_draws");')]
     init += '\n#endif\n'  # Close the desktop branch whose config block follows.
-    atomic = source[source.index('#ifdef HALO_ANDROID\n\tif (xgpu_capabilities.atomic_counters)\n\t{\n\t\tglGenBuffers'):source.index('\n\tfor (index = 0; index < XGPU_VERTEX_ATTRIBUTE_COUNT; index++)')]
+    atomic = source[source.index('#ifdef HALO_ANDROID\n\tif (xgpu_capabilities.atomic_counters)\n\t{'):source.index('\n\tfor (index = 0; index < XGPU_VERTEX_ATTRIBUTE_COUNT; index++)')]
     functions = '\n'.join(block(source, s) for s in (
         'void WINAPI D3DDevice_BeginVisibilityTest(', 'HRESULT WINAPI D3DDevice_EndVisibilityTest(',
         'static GLuint visibility_unscaled(', 'HRESULT WINAPI D3DDevice_GetVisibilityTestResult('))
@@ -430,7 +431,8 @@ def main():
     env = dict(os.environ)
     with tempfile.TemporaryDirectory(prefix='halo-visibility-test-') as directory:
         path = Path(directory)
-        for name, flags in ([] if args.benchmark_only else [('desktop', []), ('android', ['-DHALO_ANDROID'])]):
+        modes = [('desktop', [])] if args.desktop_only else [('desktop', []), ('android', ['-DHALO_ANDROID'])]
+        for name, flags in ([] if args.benchmark_only else modes):
             c, exe = path / (name + '.c'), path / (name + '.exe')
             c.write_text(COMMON + FAKE_GL + body + caller + FAKE_TESTS)
             subprocess.run([*compiler, *flags, str(c), '-o', str(exe)], check=True)
