@@ -2800,6 +2800,7 @@ symbols in this file:
 #include "interface/terminal.h"
 #include "interface/ui_widget.h"
 #include "main/console.h"
+#include "console_options.h" /* port: opt-in persistent display commands */
 #include "math/real_math.h"
 #include "memory/data.h"
 #include "networking/network_game_globals.h"
@@ -13761,6 +13762,8 @@ void hs_help(
 	char result[2048];
 	short function_index;
 
+	if (console_option_help(function_name))
+		return;
 	function_index = hs_find_function_by_name(function_name);
 	if (function_index != NONE)
 	{
@@ -13925,9 +13928,13 @@ static void hs_enumerate_function_names(
 	void)
 {
 	short function_index;
+	unsigned option_index;
+	const struct console_option *option;
 
 	for (function_index = 0; function_index<hs_function_table_count; function_index++)
 		hs_tokens_enumerate_add_string(hs_function_get(function_index)->name);
+	for (option_index = 0; (option = console_option_get(option_index)) != NULL; option_index++)
+		hs_tokens_enumerate_add_string(option->command);
 	return;
 }
 
@@ -15260,7 +15267,13 @@ static boolean hs_expression_changes_no_game(
 				break;
 		}
 		if (index >= (short)NUMBEROF(allowed))
-			return FALSE;
+		{
+			unsigned option_index;
+			const struct console_option *option;
+			for (option_index = 0; (option = console_option_get(option_index)) != NULL; option_index++)
+				if (!csstrcmp(token, option->command)) break;
+			if (!option) return FALSE;
+		}
 	}
 	return TRUE;
 }
@@ -15316,6 +15329,13 @@ static boolean hs_compile_and_evaluate_command(
 	char buffer[1024];
 	char expanded[1024];
 
+	/* Registered options are strictly parsed local display settings, allowed
+	for clients too. They are not functions available to map scripts. */
+	{
+		int option_succeeded;
+		if (console_option_execute(expression, &option_succeeded))
+			return option_succeeded;
+	}
 	/* port: the co-op host's bringto, which brings every player to the host
 	(players.c; a client is told it is the host's) */
 	if (hs_host_player_command(expression, "bringto"))
