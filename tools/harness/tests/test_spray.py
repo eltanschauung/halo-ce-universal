@@ -7,9 +7,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import build, enum_with, function, mutated, read, run, structure
 
 CASES = ['wall', 'edge', 'aspect', 'floor', 'invisible', 'broken-ring', 'capacity',
-         'singleplayer', 'network', 'multiplayer', 'split-screen', 'menu', 'pause', 'cinematic',
+         'cooldown', 'failed-cooldown', 'singleplayer', 'network', 'multiplayer', 'split-screen', 'menu', 'pause', 'cinematic',
          'dead', 'blocked', 'missing-image', 'replace', 'reset', 'input']
 CONTROLS = {
+    'short-cooldown': ('>= 4 * TICKS_PER_SECOND', '>= 3 * TICKS_PER_SECOND', 'cooldown'),
+    'failed-cooldown': ('if (spray_vertex_count)\n\t\t\t{', 'if (TRUE)\n\t\t\t{', 'failed-cooldown'),
     'network-allowed': ('game_connection() == _game_connection_local &&', '', 'network'),
     'multiplayer-allowed': ('!game_engine_running() &&', '', 'multiplayer'),
     'invisible-allowed': ('FLAG(_collision_surface_invisible_bit) |', '', 'invisible'),

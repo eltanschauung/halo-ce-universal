@@ -70,6 +70,8 @@ long sound_new_impulse(
 		struct sound_source *source),
 	void const *track_data,
 	short track_data_size);
+/* Select a named permutation on this new voice only. */
+long unspatialized_impulse_sound_new_named(long definition_index, char const *name);
 void sound_pause(
 	boolean paused);
 void sound_idle(

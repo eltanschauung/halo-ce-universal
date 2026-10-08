@@ -7,13 +7,18 @@
 #include "cutscene/cinematics.h"
 #include "physics/collisions.h"
 #include "render/render_cameras.h"
+#include "sound/sound_manager.h"
+#include "sound/sound_definitions.h"
 
 static struct halo_spray_vertex spray_vertices[HALO_SPRAY_MAXIMUM_VERTICES];
 static int spray_vertex_count;
+static boolean spray_cooldown_active;
+static unsigned long spray_last_tick;
 
 void halo_spray_reset(void)
 {
 	spray_vertex_count = 0;
+	spray_cooldown_active = FALSE;
 	platform_spray_take_request();
 	halo_spray_image_forget();
 }
@@ -48,7 +53,9 @@ void halo_spray_render(short local_player_index, struct render_camera const *cam
 	int index;
 	if (!spray_allowed(local_player_index) || !frustum->projection_valid)
 		return;
-	if (requested && !game_time_get_paused() && !cinematic_in_progress())
+	if (requested && !game_time_get_paused() && !cinematic_in_progress() &&
+		(!spray_cooldown_active ||
+		 (unsigned long)game_time_get() - spray_last_tick >= 4 * TICKS_PER_SECOND))
 	{
 		long unit_index = player_control_get_unit_index(0);
 		struct collision_result collision;
@@ -66,6 +73,16 @@ void halo_spray_render(short local_player_index, struct render_camera const *cam
 		{
 			spray_vertex_count = decal_build_spray_geometry(&collision, aspect,
 				spray_vertices, HALO_SPRAY_MAXIMUM_VERTICES);
+			if (spray_vertex_count)
+			{
+				long sound_index = tag_loaded(SOUND_DEFINITION_TAG,
+					"sound\\sfx\\weapons\\plasma rifle\\overheat");
+				spray_last_tick = (unsigned long)game_time_get();
+				spray_cooldown_active = TRUE;
+				if (sound_index != NONE)
+					unspatialized_impulse_sound_new_named(sound_index,
+						local_random_range(0, 2) ? "overheat3" : "overheat2");
+			}
 		}
 	}
 	for (index = 0; index < spray_vertex_count; index++)

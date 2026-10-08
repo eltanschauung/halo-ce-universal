@@ -2604,6 +2604,49 @@ long sound_new_impulse(
 	return sound_index;
 }
 
+/* Named playback must not override the shared tag's forced permutation: other
+ * weapon voices use that same definition. The channel starts later in sound_render. */
+long unspatialized_impulse_sound_new_named(long definition_index, char const *name)
+{
+	struct sound_definition *definition = sound_definition_get(definition_index);
+	short range_index, permutation_index;
+	for (range_index = 0; range_index < definition->pitch_ranges.count; range_index++)
+	{
+		struct sound_pitch_range *range = TAG_BLOCK_GET_ELEMENT(
+			&definition->pitch_ranges, range_index, struct sound_pitch_range);
+		for (permutation_index = 0; permutation_index < range->actual_permutation_count;
+			permutation_index++)
+		{
+			struct sound_permutation *permutation = TAG_BLOCK_GET_ELEMENT(
+				&range->permutations, permutation_index, struct sound_permutation);
+			if (!strncmp(permutation->name, name, sizeof(permutation->name)))
+			{
+				struct sound_source source;
+				long index;
+				struct sound_datum *sound;
+				csmemset(&source, 0, sizeof(source));
+				source.spatialization_mode = _sound_spatialization_mode_none;
+				source.scale = source.gain = 1.f;
+				index = sound_new_impulse(definition_index, &source, NONE, NULL, NULL, 0);
+				if (index == NONE)
+					return NONE;
+				sound = sound_get(index);
+				/* A promoted substitute cannot supply the requested clip. */
+				if (sound->definition_index != definition_index)
+				{
+					sound_stop_impulse(index);
+					return NONE;
+				}
+				sound->pitch_range_index = range_index;
+				sound->permutation_index = permutation_index;
+				_sound_cache_sound_request(permutation, FALSE, TRUE, FALSE);
+				return index;
+			}
+		}
+	}
+	return NONE;
+}
+
 boolean sound_refresh_looping(
 	long definition_index,
 	long looping_sound_identifier,

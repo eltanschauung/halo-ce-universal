@@ -888,6 +888,8 @@ Put `spray.png` beside the executable. Aim at nearby solid level geometry and
 press the binding once; one spray is kept, replacing the previous one. PNG
 transparency and aspect ratio are preserved. RGB, RGBA, grayscale, palette and
 interlaced PNGs are supported, up to 2048 x 2048 pixels and 8 MiB encoded.
-The file is reloaded on each placement. Sprays are temporary: checkpoint
-reloads, BSP changes and level changes clear them. Multiplayer and co-op are
+Successful placements play either plasma-rifle overheat2 or overheat3 at random
+and start a four-second game-time cooldown. Failed attempts remain silent and
+do not start the cooldown. The file is reloaded on each placement. Sprays are
+temporary: checkpoint reloads, BSP changes and level changes clear them. Multiplayer and co-op are
 disabled; no map, checkpoint, gameplay state or network packets are modified.

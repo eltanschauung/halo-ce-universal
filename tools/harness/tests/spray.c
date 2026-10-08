@@ -42,7 +42,14 @@ struct render_camera {real_point3d position;real_vector3d forward;};
 struct render_frustum {real_matrix4x3 world_to_view;boolean projection_valid;real projection_matrix[4][4];};
 static boolean active=TRUE, menu, multiplayer, paused, cinematic, request, blocked, missing;
 static short connection, players=1;
-static long unit=4;
+static long unit=4, tick;
+#define TICKS_PER_SECOND 30
+#define SOUND_DEFINITION_TAG 1
+static int sounds, choice;
+static long game_time_get(void){return tick;}
+static long tag_loaded(long group,const char *name){CHECK(group==SOUND_DEFINITION_TAG && !strcmp(name,"sound\\sfx\\weapons\\plasma rifle\\overheat"),"wrong sound tag");return 7;}
+static short local_random_range(short a,short b){CHECK(a==0&&b==2,"wrong random range");return choice;}
+static long unspatialized_impulse_sound_new_named(long index,const char *name){CHECK(index==7 && !strcmp(name,choice?"overheat3":"overheat2"),"wrong sound variant");sounds++;return 8;}
 static int loads,draws,forgotten,rays,presses;
 static struct collision_result hit;
 static boolean game_in_progress(void){return active;}
@@ -88,6 +95,17 @@ int main(int argc,char **argv)
  CASE("invisible") {surfaces[0].flags=FLAG(_collision_surface_invisible_bit);CHECK(!decal_build_spray_geometry(&hit,1,output,HALO_SPRAY_MAXIMUM_VERTICES),"invisible surface");return 0;}
  CASE("broken-ring") {edges[2].vertex_indices[0]=500;CHECK(!decal_build_spray_geometry(&hit,1,output,HALO_SPRAY_MAXIMUM_VERTICES),"invalid vertices accepted");return 0;}
  CASE("capacity") {CHECK(!decal_build_spray_geometry(&hit,1,output,3),"over capacity");CHECK(!decal_build_spray_geometry(&hit,NAN,output,3072),"NaN accepted");return 0;}
+ CASE("cooldown") {
+  request=TRUE;halo_spray_render(0,&camera,&frustum);CHECK(sounds==1,"first sound");
+  for(tick=0;tick<120;tick++){request=TRUE;halo_spray_render(0,&camera,&frustum);CHECK(!request&&loads==1&&sounds==1,"cooldown admitted at %ld",tick);}
+  choice=1;request=TRUE;halo_spray_render(0,&camera,&frustum);CHECK(loads==2&&sounds==2,"four second boundary");
+  halo_spray_reset();request=TRUE;halo_spray_render(0,&camera,&frustum);CHECK(sounds==3,"reset retained cooldown");return 0;
+ }
+ CASE("failed-cooldown") {
+  blocked=TRUE;request=TRUE;halo_spray_render(0,&camera,&frustum);CHECK(sounds==0,"miss played sound");
+  blocked=FALSE;surfaces[0].flags=FLAG(_collision_surface_invisible_bit);request=TRUE;halo_spray_render(0,&camera,&frustum);CHECK(sounds==0,"invalid surface played sound");
+  surfaces[0].flags=0;request=TRUE;halo_spray_render(0,&camera,&frustum);CHECK(sounds==1&&spray_vertex_count==6,"failed attempt consumed cooldown");return 0;
+ }
  CASE("network") connection=_game_connection_network_server;
  CASE("multiplayer") multiplayer=TRUE;
  CASE("split-screen") players=2;
@@ -100,8 +118,8 @@ int main(int argc,char **argv)
  request=TRUE;halo_spray_render(0,&camera,&frustum);CHECK(!request,"unconsumed input");
  if(!strcmp(case_name,"singleplayer")||!strcmp(case_name,"replace")||!strcmp(case_name,"reset")){
   CHECK(loads==1&&draws==1&&spray_vertex_count==6,"placement failed");
-  CASE("replace"){request=TRUE;halo_spray_render(0,&camera,&frustum);CHECK(loads==2&&draws==2&&spray_vertex_count==6,"sprays accumulated");}
+  CASE("replace"){tick=120;request=TRUE;halo_spray_render(0,&camera,&frustum);CHECK(loads==2&&draws==2&&spray_vertex_count==6,"sprays accumulated");}
   CASE("reset"){request=TRUE;halo_spray_reset();halo_spray_render(0,&camera,&frustum);CHECK(!request&&!spray_vertex_count&&draws==1&&forgotten==1,"checkpoint retained spray");}
- }else CHECK(!draws&&!spray_vertex_count,"spray admitted in %s",case_name);
+ }else CHECK(!sounds&&!draws&&!spray_vertex_count,"spray admitted in %s",case_name);
  return 0;
 }
