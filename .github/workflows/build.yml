@@ -71,6 +71,7 @@ jobs:
           python -m pytest -q tools/test_linux_port.py tools/harness
           python tools/test_light_storage.py
           python tools/test_needler_lod.py
+          python tools/test_settings_pagination.py
 
       - name: Compile cache
         run: ccache --show-stats
