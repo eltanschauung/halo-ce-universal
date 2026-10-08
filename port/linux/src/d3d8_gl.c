@@ -3412,6 +3412,27 @@ static unsigned long model_light_register(int light)
 	return (unsigned long)(XGPU_VERTEX_CONSTANT_BIAS + (light ? -80 + light : -82));
 }
 
+/* Custom decals must execute after all queued world draws, in the same
+   depth target and viewport (including MSAA and resolution scaling). */
+#include "../include/halo_spray.h"
+
+int halo_spray_image_load(float *aspect)
+{
+	draw_flush();
+	return spray_image_load(aspect);
+}
+
+void halo_spray_draw(struct halo_spray_clip_vertex const *vertices, int count)
+{
+	BOOL has_depth = FALSE;
+	draw_flush();
+	if (device.gl_ready && bind_targets(&has_depth) && has_depth)
+	{
+		apply_raster_state(has_depth);
+		halo_spray_image_draw(vertices, count);
+	}
+}
+
 static struct program_entry *prepare_draw(BOOL immediate)
 {
 	struct vertex_shader_object *program = current_program();

@@ -335,6 +335,7 @@ static const char *const binding_settings[NUMBER_OF_HALO_KEYBOARD_ACTIONS] =
 	"controls.jump", "controls.crouch", "controls.fire", "controls.throw_grenade", "controls.melee",
 	"controls.reload", "controls.zoom", "controls.switch_weapon", "controls.switch_grenade", "controls.action",
 	"controls.flashlight", "controls.scoreboard", "controls.pause", "controls.screenshot",
+	"controls.spray",
 };
 
 static const struct
@@ -489,6 +490,15 @@ static void keyboard_screenshot(unsigned long held)
 
 	if (down && !was_down)
 		platform_screenshot_request();
+	was_down = down;
+}
+
+static void keyboard_spray(unsigned long held, BOOL gameplay)
+{
+	static BOOL was_down;
+	BOOL down = (held & (1UL << HALO_KEYBOARD_SPRAY)) != 0;
+	if (down && !was_down && gameplay)
+		platform_spray_request();
 	was_down = down;
 }
 
@@ -876,6 +886,7 @@ DWORD WINAPI XInputGetState(HANDLE device, PXINPUT_STATE state)
 		console_active = console_is_active();
 		held = console_active ? 0 : keyboard_bound_actions(&input);
 		keyboard_screenshot(held);
+		keyboard_spray(held, !console_active && !input.menus);
 		if (!console_active)
 		{
 			if (input.menus)

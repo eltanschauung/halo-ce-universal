@@ -1,0 +1,75 @@
+#include "cseries.h"
+#include "halo_spray.h"
+#include "game/game.h"
+#include "game/game_engine.h"
+#include "game/players.h"
+#include "interface/ui_widget.h"
+#include "cutscene/cinematics.h"
+#include "physics/collisions.h"
+#include "render/render_cameras.h"
+
+static struct halo_spray_vertex spray_vertices[HALO_SPRAY_MAXIMUM_VERTICES];
+static int spray_vertex_count;
+
+void halo_spray_reset(void)
+{
+	spray_vertex_count = 0;
+	platform_spray_take_request();
+	halo_spray_image_forget();
+}
+
+static boolean spray_allowed(short local_player_index)
+{
+	return local_player_index == 0 && game_in_progress() && !main_menu_is_active() &&
+		game_connection() == _game_connection_local && !game_engine_running() &&
+		local_player_count() == 1;
+}
+
+static void spray_project(struct render_frustum const *frustum,
+	struct halo_spray_vertex const *in, struct halo_spray_clip_vertex *out)
+{
+	real_point3d world, view;
+	int column;
+	world.x = in->position[0]; world.y = in->position[1]; world.z = in->position[2];
+	matrix4x3_transform_point(&frustum->world_to_view, &world, &view);
+	for (column = 0; column < 4; column++)
+		out->position[column] = view.x * frustum->projection_matrix[0][column] +
+			view.y * frustum->projection_matrix[1][column] +
+			view.z * frustum->projection_matrix[2][column] +
+			frustum->projection_matrix[3][column];
+	out->uv[0] = in->uv[0]; out->uv[1] = in->uv[1];
+}
+
+void halo_spray_render(short local_player_index, struct render_camera const *camera,
+	struct render_frustum const *frustum)
+{
+	static struct halo_spray_clip_vertex projected[HALO_SPRAY_MAXIMUM_VERTICES];
+	boolean requested = platform_spray_take_request();
+	int index;
+	if (!spray_allowed(local_player_index) || !frustum->projection_valid)
+		return;
+	if (requested && !game_time_get_paused() && !cinematic_in_progress())
+	{
+		long unit_index = player_control_get_unit_index(0);
+		struct collision_result collision;
+		real_vector3d direction;
+		float aspect;
+		/* An object between the player and a wall blocks the spray too. */
+		direction.i = camera->forward.i * 1.5f;
+		direction.j = camera->forward.j * 1.5f;
+		direction.k = camera->forward.k * 1.5f;
+		if (unit_index != NONE && collision_test_vector(
+			FLAG(_collision_test_front_facing_surfaces_bit) |
+				_collision_test_environment_flags | _collision_test_objects_all_types_flags,
+			&camera->position, &direction, unit_index, &collision) &&
+			collision.type == _collision_result_structure && halo_spray_image_load(&aspect))
+		{
+			spray_vertex_count = decal_build_spray_geometry(&collision, aspect,
+				spray_vertices, HALO_SPRAY_MAXIMUM_VERTICES);
+		}
+	}
+	for (index = 0; index < spray_vertex_count; index++)
+		spray_project(frustum, &spray_vertices[index], &projected[index]);
+	if (spray_vertex_count)
+		halo_spray_draw(projected, spray_vertex_count);
+}

@@ -32,6 +32,8 @@ this list to generate the guest's entry points */
 #define GL_FUNCTIONS(X) \
 	X(glGetString) \
 	X(glGetIntegerv) \
+	X(glGetBooleanv) \
+	X(glIsEnabled) \
 	X(glCopyImageSubData) \
 	X(glGenerateMipmap) \
 	X(glGetError) \
@@ -51,6 +53,8 @@ this list to generate the guest's entry points */
 	X(glStencilOp) \
 	X(glStencilMask) \
 	X(glBlendFunc) \
+	X(glBlendFuncSeparate) \
+	X(glBlendEquationSeparate) \
 	X(glBlendEquation) \
 	X(glBlendColor) \
 	X(glCullFace) \
@@ -140,6 +144,8 @@ this list to generate the guest's entry points */
 #define GL_FUNCTIONS(X) \
 	X(glGetString) \
 	X(glGetIntegerv) \
+	X(glGetBooleanv) \
+	X(glIsEnabled) \
 	X(glGetTexImage) \
 	X(glCopyImageSubData) \
 	X(glGenerateMipmap) \
@@ -160,6 +166,8 @@ this list to generate the guest's entry points */
 	X(glStencilOp) \
 	X(glStencilMask) \
 	X(glBlendFunc) \
+	X(glBlendFuncSeparate) \
+	X(glBlendEquationSeparate) \
 	X(glBlendEquation) \
 	X(glBlendColor) \
 	X(glCullFace) \
@@ -267,6 +275,8 @@ pointers, sees the declarations without these aliases */
 #ifdef HALO_ANDROID
 #define glGetString halo_glGetString
 #define glGetIntegerv halo_glGetIntegerv
+#define glGetBooleanv halo_glGetBooleanv
+#define glIsEnabled halo_glIsEnabled
 #define glCopyImageSubData halo_glCopyImageSubData
 #define glGenerateMipmap halo_glGenerateMipmap
 #define glGetError halo_glGetError
@@ -286,6 +296,8 @@ pointers, sees the declarations without these aliases */
 #define glStencilOp halo_glStencilOp
 #define glStencilMask halo_glStencilMask
 #define glBlendFunc halo_glBlendFunc
+#define glBlendFuncSeparate halo_glBlendFuncSeparate
+#define glBlendEquationSeparate halo_glBlendEquationSeparate
 #define glBlendEquation halo_glBlendEquation
 #define glBlendColor halo_glBlendColor
 #define glCullFace halo_glCullFace
@@ -373,6 +385,8 @@ pointers, sees the declarations without these aliases */
 #else
 #define glGetString halo_glGetString
 #define glGetIntegerv halo_glGetIntegerv
+#define glGetBooleanv halo_glGetBooleanv
+#define glIsEnabled halo_glIsEnabled
 #define glGetTexImage halo_glGetTexImage
 #define glCopyImageSubData halo_glCopyImageSubData
 #define glGenerateMipmap halo_glGenerateMipmap
@@ -393,6 +407,8 @@ pointers, sees the declarations without these aliases */
 #define glStencilOp halo_glStencilOp
 #define glStencilMask halo_glStencilMask
 #define glBlendFunc halo_glBlendFunc
+#define glBlendFuncSeparate halo_glBlendFuncSeparate
+#define glBlendEquationSeparate halo_glBlendEquationSeparate
 #define glBlendEquation halo_glBlendEquation
 #define glBlendColor halo_glBlendColor
 #define glCullFace halo_glCullFace

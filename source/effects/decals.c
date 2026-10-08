@@ -213,6 +213,7 @@ symbols in this file:
 /* ---------- headers */
 
 #include "effects/decals.h"
+#include "halo_spray.h"
 #include "cseries/cseries.h"
 #include "math/real_math.h"
 #include "physics/collision_bsp_definitions.h"
@@ -521,6 +522,7 @@ void decals_initialize(
 void decals_initialize_for_new_map(
 	void)
 {
+	halo_spray_reset();
 	match_assert("c:\\halo\\SOURCE\\effects\\decals.c", 610, global_decal_data);
 	match_assert("c:\\halo\\SOURCE\\effects\\decals.c", 611, decal_globals);
 
@@ -544,6 +546,7 @@ void decals_initialize_for_new_map(
 void decals_dispose_from_old_map(
 	void)
 {
+	halo_spray_reset();
 	match_assert("c:\\halo\\SOURCE\\effects\\decals.c", 777, global_decal_data);
 	match_assert("c:\\halo\\SOURCE\\effects\\decals.c", 778, decal_globals);
 	rasterizer_decals_dispose_from_old_map();
@@ -1435,6 +1438,7 @@ static void decal_clip_to_surface(
 void decals_disconnect_from_structure_bsp(
 	void)
 {
+	halo_spray_reset();
 	match_assert("c:\\halo\\SOURCE\\effects\\decals.c", 713, global_decal_data);
 
 	if (global_decal_data->valid)
@@ -1554,6 +1558,72 @@ void decals_reconnect_to_structure_bsp(
 	}
 
 	return;
+}
+
+/* Custom images reuse painted-sign clipping without tags or saved datums. */
+int decal_build_spray_geometry(struct collision_result const *collision, float aspect,
+	struct halo_spray_vertex *vertices, int capacity)
+{
+	static struct decal_geometry geometry;
+	struct decal_projection projection;
+	real_matrix4x3 basis;
+	real_rectangle2d extent;
+	real_vector3d reference;
+	long queue[MAXIMUM_DECAL_SURFACE_QUEUE_SIZE], deviant[MAXIMUM_DECAL_SURFACE_QUEUE_SIZE];
+	short read_index = 0, write_index = 1, deviant_count = 0;
+	int surface, first = 0, count = 0;
+	float radius;
+	if (!collision || !vertices || capacity < 3 || collision->type != _collision_result_structure ||
+		!decals_enabled || !(aspect > 0.0f && aspect <= 2048.0f) ||
+		!collision_bsp_valid_surface_index(global_collision_bsp_get(), collision->surface_index))
+		return 0;
+	csmemset(&basis, 0, sizeof(basis));
+	basis.scale = 1.0f;
+	basis.position = collision->point;
+	basis.up = collision->plane.n;
+	if (normalize3d(&basis.up) < _real_epsilon)
+		return 0;
+	set_real_vector3d(&reference, 0.0f, 0.0f, 1.0f);
+	if (fabs(basis.up.k) > 0.95f)
+		set_real_vector3d(&reference, 0.0f, 1.0f, 0.0f);
+	cross_product3d(&reference, &basis.up, &basis.forward);
+	normalize3d(&basis.forward);
+	cross_product3d(&basis.up, &basis.forward, &basis.left);
+	/* Upright on walls; PNG rows run downwards. Floors have a fixed axis. */
+	scale_vector3d(&basis.left, -1.0f, &basis.left);
+	extent.x1 = aspect > 1.0f ? 0.25f / aspect : 0.25f;
+	extent.y1 = extent.x1 * aspect;
+	extent.x0 = -extent.x1;
+	extent.y0 = -extent.y1;
+	radius = (real)sqrt(extent.x1 * extent.x1 + extent.y1 * extent.y1);
+	geometry.decal_surface_count = geometry.decal_vertex_count = 0;
+	decal_projection_create(&basis, &extent, &projection);
+	queue[0] = collision->surface_index;
+	while (read_index < write_index)
+		decal_clip_to_surface(&geometry, &projection, queue[read_index++], TRUE,
+			radius, _decal_type_painted_sign, queue, &write_index, deviant, &deviant_count);
+	for (surface = 0; surface < geometry.decal_surface_count; surface++)
+	{
+		int points = geometry.decal_surface_vertex_counts[surface], triangle;
+		if (count + (points - 2) * 3 > capacity)
+			return 0;
+		for (triangle = 1; triangle + 1 < points; triangle++)
+		{
+			int fan[3] = { first, first + triangle, first + triangle + 1 }, corner;
+			for (corner = 0; corner < 3; corner++)
+			{
+				struct decal_vertex const *in = &geometry.decal_vertices[fan[corner]];
+				struct halo_spray_vertex *out = &vertices[count++];
+				out->position[0] = in->position.x + basis.up.i * 0.0002f;
+				out->position[1] = in->position.y + basis.up.j * 0.0002f;
+				out->position[2] = in->position.z + basis.up.k * 0.0002f;
+				out->uv[0] = PIN(in->texcoord.x, 0.0f, 1.0f);
+				out->uv[1] = PIN(in->texcoord.y, 0.0f, 1.0f);
+			}
+		}
+		first += points;
+	}
+	return count;
 }
 
 void decal_new_from_collision(

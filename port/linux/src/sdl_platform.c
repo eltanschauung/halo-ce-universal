@@ -35,6 +35,7 @@ reads still counts as a press (input injected on Android, or a slow frame) */
 static unsigned char keys_pressed[SDL_SCANCODE_COUNT];
 /* The bound Screenshot action requests capture at the next presentation. */
 static BOOL screenshot_requested;
+static BOOL spray_requested;
 /* likewise the mouse buttons pressed since the last read, so that a click
 quicker than a frame still counts */
 static unsigned char mouse_buttons_pressed[PLATFORM_MOUSE_BUTTON_COUNT];
@@ -1190,6 +1191,23 @@ BOOL platform_screenshot_take_request(void)
 	pthread_mutex_lock(&input_lock);
 	requested = screenshot_requested;
 	screenshot_requested = FALSE;
+	pthread_mutex_unlock(&input_lock);
+	return requested;
+}
+
+void platform_spray_request(void)
+{
+	pthread_mutex_lock(&input_lock);
+	spray_requested = TRUE;
+	pthread_mutex_unlock(&input_lock);
+}
+
+BOOL platform_spray_take_request(void)
+{
+	BOOL requested;
+	pthread_mutex_lock(&input_lock);
+	requested = spray_requested;
+	spray_requested = FALSE;
 	pthread_mutex_unlock(&input_lock);
 	return requested;
 }

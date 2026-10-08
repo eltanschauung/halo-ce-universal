@@ -2003,6 +2003,7 @@ static struct
 	{ "controls.scoreboard", L"SHOW SCORES", 2 },
 	{ "controls.pause", L"PAUSE MENU", 2 },
 	{ "controls.screenshot", L"SCREENSHOT", 2 },
+	{ "controls.spray", L"SPRAY IMAGE", 2 },
 };
 
 static struct

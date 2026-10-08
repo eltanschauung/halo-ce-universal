@@ -62,6 +62,7 @@ symbols in this file:
 #include "cseries.h"
 #include "cseries/errors.h"
 #include "render.h"
+#include "halo_spray.h"
 #include "render_cameras_internal.h"
 #include "render_particles.h"
 #include "objects.h"
@@ -384,6 +385,7 @@ static void render_window(
 		}
 		rasterizer_decals_end();
 
+		halo_spray_render(local_player_index, rasterizer_camera, rasterizer_frustum);
 		lights_render_specular();
 		structure_render_specular_lightmaps();
 		structure_render_reflection_lightmap_masks();

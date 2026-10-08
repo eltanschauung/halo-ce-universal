@@ -100,6 +100,7 @@ symbols in this file:
 #include "real_math.h"
 #include "console.h"
 #include "game_state.h"
+#include "halo_spray.h"
 #include "game.h"
 #include "tag_files.h"
 #include "cache_files.h"
@@ -185,6 +186,7 @@ static game_state_before_save_proc before_save_procs[] =
 
 static game_state_before_load_proc before_load_procs[] =
 {
+	halo_spray_reset,
 	game_sound_clear,
 	/* port: where the cluster lists' references are, which the game state
 	being loaded does not hold */

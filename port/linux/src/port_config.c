@@ -262,6 +262,8 @@ static const struct config_setting config_settings[] =
 		"The pause menu (the controller's Start)." },
 	{ "controls.screenshot", _config_string, "\"F10\"", "HALO_KEY_SCREENSHOT", _environment_value, _platform_all,
 		"Save a PNG screenshot beside maps/ (press once per capture)." },
+	{ "controls.spray", _config_string, "\"T\"", "HALO_KEY_SPRAY", _environment_value, _platform_all,
+		"Spray spray.png from the executable folder onto a nearby wall (singleplayer)." },
 
 	{ "game.console_log", _config_string, "\"important\"", "HALO_CONSOLE_LOG", _environment_value, _platform_all,
 		"What the game's console shows on screen of what it logs: \"important\"\n"

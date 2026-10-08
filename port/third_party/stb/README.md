@@ -11,3 +11,7 @@ unchanged.
 The game's text is drawn with fonts from `port/assets/fonts`, rasterized
 with it at the display's resolution (`port/linux/src/text_hires.c`); it
 builds into the Linux, Windows and Android platform layers.
+
+`stb_image.h` v2.30, from the same commit, is copied unchanged. The singleplayer
+spray loader (`port/linux/src/spray_image.c`) builds its PNG decoder only,
+with a 2048-pixel dimension limit.
