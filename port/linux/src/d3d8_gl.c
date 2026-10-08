@@ -522,9 +522,10 @@ struct gl_device
 	/* the pixels each of the game's pixels covered in the test's target
 	(render_target_get), which its count is divided by */
 	float query_area[VISIBILITY_TEST_SLOTS];
+	/* scratch query kept outside all game-visible result slots, including 0 */
 	GLuint active_query;
 	BOOL visibility_test_active;
-	/* (queries read on the CPU) each slot's latest count known, and whether
+	/* each slot's latest count known, and whether
 	its query has yet to be read: the game spins on a result it is told is
 	incomplete, so a query is read only once it says it is available, and
 	until then the slot's earlier count stands. A frame of The Library's
@@ -551,12 +552,16 @@ struct gl_device
 	GLuint counter_values[VISIBILITY_TEST_SLOTS];
 	GLuint visibility_latest[VISIBILITY_TEST_SLOTS];
 #else
-	/* each test's latest result, which the GPU writes (as a query buffer)
-	when the test's draws are done: the game waits for results at the start
-	of the next frame, and a query would stop the CPU there until the GPU
-	had caught up */
+	/* asynchronous GPU result writes; fences protect mapped reads while
+	the last completed counts keep the game from waiting for the GPU */
 	GLuint visibility_results_buffer;
 	volatile GLuint *visibility_results;
+	/* completion of each current query's write into the mapped result slot */
+	GLsync visibility_sync[VISIBILITY_TEST_SLOTS];
+	ULONGLONG visibility_sequence[VISIBILITY_TEST_SLOTS];
+	ULONGLONG visibility_next_sequence;
+	ULONGLONG visibility_blocked_sequence;
+	unsigned long visibility_blocked_frame;
 	/* a pipeline flush every flush_every draws (draw_flush), 0 never */
 	unsigned long flush_every;
 	unsigned long flush_draws;
@@ -1538,6 +1543,7 @@ static void gl_initialize(void)
 #endif
 	glGenSamplers(D3DTSS_MAXSTAGES, device.samplers);
 	glGenQueries(VISIBILITY_TEST_SLOTS, device.queries);
+	glGenQueries(1, &device.active_query);
 #ifndef HALO_ANDROID
 	glGenBuffers(1, &device.visibility_results_buffer);
 	glBindBuffer(GL_QUERY_BUFFER, device.visibility_results_buffer);
@@ -1545,8 +1551,10 @@ static void gl_initialize(void)
 		GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
 	device.visibility_results = glMapBufferRange(GL_QUERY_BUFFER, 0, VISIBILITY_TEST_SLOTS * sizeof(GLuint),
 		GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+	/* the unmapped fallback reads query results into client memory */
+	glBindBuffer(GL_QUERY_BUFFER, 0);
 	if (!device.visibility_results)
-		platform_log("cannot map the visibility test results; tests wait for the GPU");
+		platform_log("cannot map the visibility test results; using CPU query reads");
 	{
 		long every = config_integer("debug.gpu_flush_draws");
 		const char *renderer = (const char *)glGetString(GL_RENDERER);
@@ -2048,7 +2056,7 @@ void WINAPI D3DDevice_BeginVisibilityTest(void)
 		return;
 	}
 #endif
-	glBeginQuery(VISIBILITY_QUERY, device.queries[0]);
+	glBeginQuery(VISIBILITY_QUERY, device.active_query);
 }
 
 HRESULT WINAPI D3DDevice_EndVisibilityTest(DWORD index)
@@ -2059,8 +2067,6 @@ HRESULT WINAPI D3DDevice_EndVisibilityTest(DWORD index)
 		return S_OK;
 	device.visibility_test_active = FALSE;
 	index %= VISIBILITY_TEST_SLOTS;
-	if (!index)
-		index = 1;
 #ifdef HALO_ANDROID
 	if (xgpu_capabilities.atomic_counters)
 	{
@@ -2079,6 +2085,12 @@ HRESULT WINAPI D3DDevice_EndVisibilityTest(DWORD index)
 	}
 #endif
 	glEndQuery(VISIBILITY_QUERY);
+#ifndef HALO_ANDROID
+	/* Keep an unread test until its result arrives. Replacing its fence
+	every frame could starve the cache when the GPU stays frames behind. */
+	if (device.visibility_unread[index])
+		return S_OK;
+#endif
 	/* the target's samples to a game pixel (its pixels, by its samples a
 	pixel with multisampling): the result is a count of the game's pixels
 	(visibility_unscaled), which the game divides by its own test's area
@@ -2086,12 +2098,13 @@ HRESULT WINAPI D3DDevice_EndVisibilityTest(DWORD index)
 	screen's alike */
 	device.query_area[index] = target_scale[0] * target_scale[1] * (float)target_samples;
 	/* swap the scratch query into the requested slot */
-	scratch = device.queries[0];
-	device.queries[0] = device.queries[index];
+	scratch = device.active_query;
+	device.active_query = device.queries[index];
 	device.queries[index] = scratch;
 	device.query_pending[index] = TRUE;
 	device.visibility_unread[index] = TRUE;
 #ifndef HALO_ANDROID
+	device.visibility_sequence[index] = ++device.visibility_next_sequence;
 	if (device.visibility_results)
 	{
 		/* the GPU writes the count into the slot once it is known (given
@@ -2099,6 +2112,9 @@ HRESULT WINAPI D3DDevice_EndVisibilityTest(DWORD index)
 		glGetQueryObjectuiv, even one into a bound buffer) */
 		glGetQueryBufferObjectuiv(device.queries[index], device.visibility_results_buffer, GL_QUERY_RESULT,
 			(GLintptr)(index * sizeof(GLuint)));
+		if (device.visibility_sync[index])
+			glDeleteSync(device.visibility_sync[index]);
+		device.visibility_sync[index] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 	}
 #endif
 	return S_OK;
@@ -2121,8 +2137,6 @@ HRESULT WINAPI D3DDevice_GetVisibilityTestResult(DWORD index, UINT *result, ULON
 	if (time_stamp)
 		*time_stamp = 0;
 	index %= VISIBILITY_TEST_SLOTS;
-	if (!index)
-		index = 1;
 	if (!device.gl_ready || !device.query_pending[index])
 	{
 		if (result)
@@ -2139,13 +2153,46 @@ HRESULT WINAPI D3DDevice_GetVisibilityTestResult(DWORD index, UINT *result, ULON
 	}
 #endif
 #ifndef HALO_ANDROID
-	if (device.visibility_results)
+	/* GPU commands complete in submission order. After one pending test,
+	later tests cannot be ready at that observation point either. Reuse
+	their cached counts for this frame instead of polling the driver for
+	every flare. Older retained tests still get their own readiness check. */
+	if (device.visibility_unread[index] && device.visibility_blocked_sequence &&
+		device.visibility_blocked_frame == device.frame &&
+		device.visibility_sequence[index] >= device.visibility_blocked_sequence)
 	{
-		/* the latest count the GPU has written: from this test, or while
-		the GPU is still behind, from the slot's earlier ones */
 		if (result)
-			*result = visibility_unscaled(device.visibility_results[index], index);
+			*result = device.visibility_known[index];
 		return S_OK;
+	}
+	if (device.visibility_results && device.visibility_sync[index] && device.visibility_unread[index])
+	{
+		/* coherent mapping does not mean the current write has completed:
+		until its fence signals, the slot may still hold another flare's
+		count. Return only its last completed count without spinning. */
+		GLenum status = glClientWaitSync(device.visibility_sync[index], 0, 0);
+
+		if (status == GL_TIMEOUT_EXPIRED)
+		{
+			device.visibility_blocked_sequence = device.visibility_sequence[index];
+			device.visibility_blocked_frame = device.frame;
+			if (result)
+				*result = device.visibility_known[index];
+			return S_OK;
+		}
+		if (status == GL_ALREADY_SIGNALED || status == GL_CONDITION_SATISFIED)
+		{
+			device.visibility_known[index] = visibility_unscaled(device.visibility_results[index], index);
+			device.visibility_unread[index] = FALSE;
+			glDeleteSync(device.visibility_sync[index]);
+			device.visibility_sync[index] = NULL;
+			if (result)
+				*result = device.visibility_known[index];
+			return S_OK;
+		}
+		/* a failed sync falls back to querying this slot's current object */
+		glDeleteSync(device.visibility_sync[index]);
+		device.visibility_sync[index] = NULL;
 	}
 #endif
 	/* the latest count known: from this test, or while the GPU is still
@@ -2169,6 +2216,13 @@ HRESULT WINAPI D3DDevice_GetVisibilityTestResult(DWORD index, UINT *result, ULON
 			device.visibility_known[index] = samples;
 			device.visibility_unread[index] = FALSE;
 		}
+#ifndef HALO_ANDROID
+		else
+		{
+			device.visibility_blocked_sequence = device.visibility_sequence[index];
+			device.visibility_blocked_frame = device.frame;
+		}
+#endif
 	}
 	if (result)
 		*result = device.visibility_known[index];
