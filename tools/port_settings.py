@@ -82,6 +82,14 @@ SCREENS = {
              None),
             ("PER-PIXEL LIGHTING:", "display.per_pixel_lighting", ON_OFF,
              "Light models for each pixel, without the facets\nof the Xbox's lighting for each vertex.", None),
+            # The stock horizontal 16:9 view is about 76.9 degrees: round
+            # up to 80 for the first numeric choice, as in the earlier menu.
+            ("FOV:", "display.fov", [("DEFAULT", "0")] + [(str(n), str(n)) for n in range(80, 151, 5)],
+             "Horizontal view in degrees at 16:9. Default uses\nthe authored view; scoped views keep their zoom.", None),
+            ("VIEWMODEL FOV:", "display.viewmodel_fov", [("SAME", "0")] + [(str(n), str(n)) for n in range(80, 151, 5)],
+             "Weapon and hands field of view at 16:9. Same\nfollows the current world view, including zoom.", None),
+            ("VIEWMODELS:", "display.viewmodel_visible", ON_OFF,
+             "Show your first-person weapon and hands. Hiding\nthem leaves firing, sound and world lights active.", None),
         ],
     },
     "mouse_settings": {
