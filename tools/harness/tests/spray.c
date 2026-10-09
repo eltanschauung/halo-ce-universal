@@ -74,6 +74,7 @@ static void crypto_blake2b(uint8_t *hash,size_t count,const uint8_t *data,size_t
 void halo_spray_draw(struct halo_spray_clip_vertex const *v,int count){CHECK(count>0&&count<=HALO_SPRAY_MAXIMUM_VERTICES,"bad draw size");CHECK(isfinite(v[0].position[0]),"invalid projection");draws++;}
 void halo_spray_draw_slot(int slot,struct halo_spray_clip_vertex const *v,int count){(void)slot;halo_spray_draw(v,count);}
 static boolean collision_test_vector(unsigned long flags,real_point3d const *p,real_vector3d const *v,long ignore,struct collision_result *out){
+ if(ignore==NONE){CHECK(flags&FLAG(_collision_test_structure_bit),"remote projection omitted structure");CHECK(!(flags&FLAG(_collision_test_objects_bit)),"moving objects can invalidate received placement");*out=hit;return TRUE;}
  CHECK(flags&FLAG(_collision_test_objects_bit),"objects must block sprays");CHECK(ignore==unit,"self not ignored");
  CHECK(fabs(v->i)==1.5f&&v->j==0&&v->k==0,"bad reach or direction");(void)p;rays++;*out=hit;return !blocked;
 }
@@ -96,6 +97,7 @@ int main(int argc,char **argv)
  struct render_camera camera={0};camera.forward.i=-1;
  struct render_frustum frustum={0};frustum.projection_valid=TRUE;for(int i=0;i<4;i++)frustum.projection_matrix[i][i]=1;
  if(!strncmp(case_name,"shared",6)){
+  blocked=TRUE; /* A moving object arrived while the PNG was in transit. */
   struct spray_pose pose={{0,0,0},{-1.5f,0,0},0};
   CASE("shared-bsp"){pose.bsp=1;CHECK(!network_spray_ready(1,1,"x",1,&pose,"remote",0),"stale BSP accepted");return 0;}
   CASE("shared-nan"){pose.direction[0]=NAN;CHECK(!network_spray_ready(1,1,"x",1,&pose,"remote",0),"NaN accepted");return 0;}

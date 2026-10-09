@@ -29,15 +29,18 @@ int network_spray_ready(int slot,int owner,const void *data,size_t size,
  struct collision_result collision;real_point3d origin;real_vector3d direction;
  float aspect,length=0;unsigned char hash[32];int i,count;
  static struct halo_spray_vertex vertices[HALO_SPRAY_MAXIMUM_VERTICES];
- (void)local;
+ (void)local;(void)owner;
  if(slot<0||slot>=SPRAY_SHARE_SLOTS||pose->bsp!=global_structure_bsp_index_get())return 0;
  for(i=0;i<3;i++){
   if(!isfinite(pose->origin[i])||fabsf(pose->origin[i])>32768||!isfinite(pose->direction[i]))return 0;
   origin.n[i]=pose->origin[i];direction.n[i]=pose->direction[i];length+=direction.n[i]*direction.n[i];
  }
  if(length<2.249f||length>2.251f||!halo_spray_png_aspect(data,size,&aspect)||
-  !collision_test_vector(FLAG(_collision_test_front_facing_surfaces_bit)|_collision_test_environment_flags|_collision_test_objects_all_types_flags,
-   &origin,&direction,network_spray_unit(owner),&collision)||collision.type!=_collision_result_structure)return 0;
+  /* The host already checked moving blockers at the time of placement.
+   * A transfer can finish later: project onto the static wall, regardless of
+   * where players have since moved, died or respawned. */
+  !collision_test_vector(FLAG(_collision_test_front_facing_surfaces_bit)|FLAG(_collision_test_structure_bit),
+   &origin,&direction,NONE,&collision)||collision.type!=_collision_result_structure)return 0;
  count=decal_build_spray_geometry(&collision,aspect,vertices,HALO_SPRAY_MAXIMUM_VERTICES);if(!count)return 0;
  crypto_blake2b(hash,32,data,size);
  if(!shared_sprays[slot].path[0]||memcmp(hash,shared_sprays[slot].hash,32)){
