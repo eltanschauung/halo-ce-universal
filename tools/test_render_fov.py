@@ -191,7 +191,7 @@ int main(void){unchanged_cases();projections();zoom_and_maps();printf("PASS: %u 
 '''
 
 def menu():
-    path = ROOT/'port/assets/menus/ce/main_menu.settings_select.player_setup.player_profile_edit.video_settings.xml'
+    path = ROOT/'port/assets/menus/ce/main_menu.settings_select.player_setup.player_profile_edit.video_settings.fov_viewmodels.xml'
     assert path.read_text() == '\n'.join(port_settings.settings_files()[path.name])
     root = ET.parse(path).getroot()
     options = {w.get('setting'): w for w in root.findall('widget') if w.get('setting')}
@@ -201,7 +201,7 @@ def menu():
         assert widget.get('values').split('|') == ['0'] + [str(n) for n in range(80, 151, 5)]
         assert [e.get('event') for e in widget.findall('on')] == ['created']
     assert any(w.get('name').endswith('/settings_next_page') for w in root.findall('widget'))
-    print('PASS: paginated Video Setup exposes FOV Default=0 and Viewmodel FOV Same=0, followed by 80-150; console config keys and pending-edit lifecycle preserved')
+    print('PASS: Video Setup category exposes FOV Default=0 and Viewmodel FOV Same=0, followed by 80-150; console config keys and pending-edit lifecycle preserved')
 
 
 def main():
