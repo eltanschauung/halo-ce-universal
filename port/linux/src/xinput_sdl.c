@@ -336,6 +336,7 @@ static const char *const binding_settings[NUMBER_OF_HALO_KEYBOARD_ACTIONS] =
 	"controls.reload", "controls.zoom", "controls.switch_weapon", "controls.switch_grenade", "controls.action",
 	"controls.flashlight", "controls.scoreboard", "controls.pause", "controls.screenshot",
 	"controls.spray",
+	"controls.push_to_talk",
 };
 
 static const struct
@@ -515,6 +516,22 @@ static void keyboard_controls(unsigned long held, XINPUT_GAMEPAD *pad)
 unsigned long halo_keyboard_actions(short controller_index)
 {
 	return controller_index == 0 ? keyboard_actions_held : 0;
+}
+
+int halo_push_to_talk_held(void)
+{
+	struct platform_input_state input;
+	int slot;
+
+	/* (the window losing the focus lets every key go: sdl_platform.c) */
+	bindings_read();
+	platform_input_read(&input, FALSE);
+	for (slot = 0; slot < MAXIMUM_BINDINGS; slot++)
+	{
+		if (input_held(&input, bindings[HALO_KEYBOARD_PUSH_TO_TALK][slot]))
+			return 1;
+	}
+	return 0;
 }
 
 /* A scroll of the wheel switches weapons once: it holds Y for WHEEL_PRESS_MS

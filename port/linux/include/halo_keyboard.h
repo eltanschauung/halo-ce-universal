@@ -36,6 +36,9 @@ enum halo_keyboard_action
 	HALO_KEYBOARD_PAUSE,
 	HALO_KEYBOARD_SCREENSHOT,
 	HALO_KEYBOARD_SPRAY,
+	/* (voice chat's, which the game itself does not read:
+	halo_push_to_talk_held) */
+	HALO_KEYBOARD_PUSH_TO_TALK,
 	NUMBER_OF_HALO_KEYBOARD_ACTIONS
 };
 
@@ -43,5 +46,8 @@ enum halo_keyboard_action
 (a bit for each halo_keyboard_action): theirs is the first's; none while a
 menu or the console is up */
 unsigned long halo_keyboard_actions(short controller_index);
+/* whether voice chat's push to talk is held (controls.push_to_talk), in the
+game and in the menus alike */
+int halo_push_to_talk_held(void);
 
 #endif
