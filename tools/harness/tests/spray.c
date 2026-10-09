@@ -40,7 +40,7 @@ static boolean collision_surface_edge_ring_continues(struct collision_bsp const 
 struct collision_result {short type;real_point3d point;real_plane3d plane;long surface_index;};
 struct render_camera {real_point3d position;real_vector3d forward;};
 struct render_frustum {real_matrix4x3 world_to_view;boolean projection_valid;real projection_matrix[4][4];};
-static boolean active=TRUE, menu, multiplayer, paused, cinematic, request, blocked, missing;
+static boolean active=TRUE, menu, paused, cinematic, request, blocked, missing;
 static short connection, players=1;
 static long unit=4, tick;
 #define TICKS_PER_SECOND 30
@@ -123,7 +123,7 @@ int main(int argc,char **argv)
   surfaces[0].flags=0;request=TRUE;halo_spray_render(0,&camera,&frustum);CHECK(sounds==1&&spray_vertex_count==6,"failed attempt consumed cooldown");return 0;
  }
  CASE("network") connection=_game_connection_network_server;
- CASE("multiplayer") multiplayer=TRUE;
+ CASE("multiplayer") connection=_game_connection_network_server;
  CASE("split-screen") players=2;
  CASE("menu") menu=TRUE;
  CASE("pause") paused=TRUE;
