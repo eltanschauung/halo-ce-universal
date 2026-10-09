@@ -405,3 +405,35 @@ int host_sdl_show_simple_message_box(uint32_t flags, const char *title, const ch
 {
 	return SDL_ShowSimpleMessageBox((SDL_MessageBoxFlags)flags, title, message, NULL) ? 1 : 0;
 }
+
+/* Screenshot and image-loading services. Only pixels and pointer-free SDL
+ * time/path records cross the ILP32 boundary; SDL_Surface stays on the host. */
+_Static_assert(sizeof(SDL_DateTime) == 36, "SDL_DateTime guest ABI");
+void host_sdl_set_error(const char *message) { SDL_SetError("%s", message); }
+int host_sdl_base_path(char *buffer, uint32_t size)
+{
+ const char *base = SDL_GetBasePath();
+ if (!base || SDL_strlen(base) >= size) return 0;
+ SDL_strlcpy(buffer, base, size); return 1;
+}
+int host_sdl_create_directory(const char *path) { return SDL_CreateDirectory(path); }
+int host_sdl_current_time(void *ticks) { return SDL_GetCurrentTime(ticks); }
+int host_sdl_date_time(int64_t ticks, void *date, int local) { return SDL_TimeToDateTime(ticks, date, local != 0); }
+int host_sdl_path_info(const char *path, int *type, int64_t *values)
+{
+ SDL_PathInfo info;
+ if (!SDL_GetPathInfo(path, &info)) return 0;
+ if (type) *type = info.type;
+ if (values) { values[0] = info.size; values[1] = info.create_time;
+               values[2] = info.modify_time; values[3] = info.access_time; }
+ return 1;
+}
+int host_sdl_save_rgba_png(int width, int height, int pitch, const void *pixels, const char *path)
+{
+ SDL_Surface *surface = SDL_CreateSurfaceFrom(width, height, SDL_PIXELFORMAT_RGBA32, (void *)pixels, pitch);
+ int result;
+ if (!surface) return 0;
+ result = SDL_SavePNG(surface, path);
+ SDL_DestroySurface(surface);
+ return result;
+}

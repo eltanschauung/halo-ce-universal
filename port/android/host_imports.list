@@ -16,6 +16,13 @@ host_memory_watch_forget
 host_sdl_init
 host_sdl_set_hint
 host_sdl_get_error
+host_sdl_set_error
+host_sdl_base_path
+host_sdl_create_directory
+host_sdl_current_time
+host_sdl_date_time
+host_sdl_path_info
+host_sdl_save_rgba_png
 host_sdl_ticks
 host_sdl_thread_id
 host_sdl_create_window

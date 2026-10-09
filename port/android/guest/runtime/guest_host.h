@@ -55,6 +55,13 @@ handles on this side. */
 int host_sdl_init(unsigned int flags);
 int host_sdl_set_hint(const char *name, const char *value);
 void host_sdl_get_error(char *buffer, unsigned int size);
+void host_sdl_set_error(const char *message);
+int host_sdl_base_path(char *buffer, unsigned int size);
+int host_sdl_create_directory(const char *path);
+int host_sdl_current_time(void *ticks);
+int host_sdl_date_time(long long ticks, void *date, int local);
+int host_sdl_path_info(const char *path, int *type, long long *values);
+int host_sdl_save_rgba_png(int width, int height, int pitch, const void *pixels, const char *path);
 long long host_sdl_ticks(void);
 long long host_sdl_thread_id(void);
 unsigned int host_sdl_create_window(const char *title, int width, int height, long long flags);

@@ -97,7 +97,7 @@ int main(int argc,char **argv)
  CASE("capacity") {CHECK(!decal_build_spray_geometry(&hit,1,output,3),"over capacity");CHECK(!decal_build_spray_geometry(&hit,NAN,output,3072),"NaN accepted");return 0;}
  CASE("cooldown") {
   request=TRUE;halo_spray_render(0,&camera,&frustum);CHECK(sounds==1,"first sound");
-  for(tick=0;tick<120;tick++){request=TRUE;halo_spray_render(0,&camera,&frustum);CHECK(!request&&loads==1&&sounds==1,"cooldown admitted at %ld",tick);}
+  for(tick=0;tick<120;tick++){request=TRUE;halo_spray_render(0,&camera,&frustum);CHECK(!request&&loads==1&&sounds==1&&rays==1,"cooldown admitted at %ld",tick);}
   choice=1;request=TRUE;halo_spray_render(0,&camera,&frustum);CHECK(loads==2&&sounds==2,"four second boundary");
   halo_spray_reset();request=TRUE;halo_spray_render(0,&camera,&frustum);CHECK(sounds==3,"reset retained cooldown");return 0;
  }
