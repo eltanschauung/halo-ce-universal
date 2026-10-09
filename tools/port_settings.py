@@ -373,7 +373,8 @@ def _setting_screen(folder: str, spec: dict) -> list:
         target = f"{PE}/{category_folder}/{SCREENS[category_folder]['screen']}"
         rows.append((row, None, place + 1 + index))
         extra += _widget(row, [("width", 512), ("height", 28), ("flags", "pass_unhandled_to_focused_child"),
-                               ("bitmap", "bitmaps/option_bkds"), ("color", "#FF2896FF")],
+                               ("bitmap", "bitmaps/option_bkds"), ("color", "#FF2896FF"),
+                               ("string_index", place + 1 + index)],
                          [f'<on event="a" open="{target}"/>', f'<on event="start" open="{target}"/>',
                           '<on event="left_mouse" run="mouse emit accept event"/>',
                           f'<child widget="{base}/{key}_label"/>'])
