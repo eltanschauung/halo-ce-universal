@@ -3454,6 +3454,11 @@ int halo_spray_image_load_slot(int slot,const char *path,float *aspect)
  draw_flush();return spray_image_load_slot(slot,path,aspect);
 }
 
+int halo_spray_image_load_bytes(int slot,const void *data,size_t size,float *aspect)
+{
+ draw_flush();return spray_image_load_bytes(slot,data,size,aspect);
+}
+
 void halo_spray_draw_slot(int slot,struct halo_spray_clip_vertex const *vertices,int count)
 {
  BOOL has_depth=FALSE;draw_flush();

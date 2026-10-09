@@ -50,7 +50,8 @@ static long game_time_get(void){return tick;}
 static long tag_loaded(long group,const char *name){CHECK(group==SOUND_DEFINITION_TAG && !strcmp(name,"sound\\sfx\\weapons\\plasma rifle\\overheat"),"wrong sound tag");return 7;}
 static short local_random_range(short a,short b){CHECK(a==0&&b==2,"wrong random range");return choice;}
 static long unspatialized_impulse_sound_new_named(long index,const char *name){CHECK(index==7 && !strcmp(name,choice?"overheat3":"overheat2"),"wrong sound variant");sounds++;return 8;}
-static int loads,draws,forgotten,rays,presses;
+static int loads,draws,forgotten,rays,presses,saves;
+static boolean upload_failed;
 static struct collision_result hit;
 static boolean game_in_progress(void){return active;}
 static boolean main_menu_is_active(void){return menu;}
@@ -67,8 +68,10 @@ static short global_structure_bsp_index_get(void){return 0;}
 void network_spray_reset(void){}
 long network_spray_unit(int owner){(void)owner;return unit;}
 int network_spray_publish(struct spray_pose pose){(void)pose;return 0;}
+int network_spray_is_local(int owner){return owner==0;}
 int halo_spray_png_aspect(const void *data,size_t size,float *aspect){(void)data;(void)size;*aspect=1;return !missing;}
-int halo_spray_file_save(const void *data,size_t size,const char *name,char *path,size_t capacity,float *aspect){(void)data;(void)size;(void)name;(void)capacity;strcpy(path,"fake.png");*aspect=1;return 1;}
+int halo_spray_file_save(const void *data,size_t size,const char *name,char *path,size_t capacity,float *aspect){(void)data;(void)size;(void)name;(void)capacity;saves++;strcpy(path,"fake.png");*aspect=1;return 1;}
+int halo_spray_image_load_bytes(int slot,const void *data,size_t size,float *aspect){CHECK(slot>=0&&slot<SPRAY_SHARE_SLOTS&&data&&size,"invalid memory image");loads++;*aspect=1;return !upload_failed;}
 int halo_spray_image_load_slot(int slot,const char *path,float *aspect){(void)slot;(void)path;return halo_spray_image_load(aspect);}
 static void crypto_blake2b(uint8_t *hash,size_t count,const uint8_t *data,size_t size){(void)data;(void)size;memset(hash,1,count);}
 void halo_spray_draw(struct halo_spray_clip_vertex const *v,int count){CHECK(count>0&&count<=HALO_SPRAY_MAXIMUM_VERTICES,"bad draw size");CHECK(isfinite(v[0].position[0]),"invalid projection");draws++;}
@@ -96,6 +99,29 @@ int main(int argc,char **argv)
  struct halo_spray_vertex output[HALO_SPRAY_MAXIMUM_VERTICES];
  struct render_camera camera={0};camera.forward.i=-1;
  struct render_frustum frustum={0};frustum.projection_valid=TRUE;for(int i=0;i<4;i++)frustum.projection_matrix[i][i]=1;
+ if(!strcmp(case_name,"shared-local")||!strcmp(case_name,"shared-echo")||
+    !strcmp(case_name,"shared-identical")||!strcmp(case_name,"shared-local-upload-failed")||
+    !strcmp(case_name,"shared-remote-cache")){
+  struct spray_pose pose={{0,0,0},{-1.5f,0,0},0};
+  int remote=!strcmp(case_name,"shared-remote-cache");
+  int local=!strcmp(case_name,"shared-local");
+  int owner=remote||local?1:0;
+  upload_failed=!strcmp(case_name,"shared-local-upload-failed");
+  CHECK(network_spray_ready(1,owner,"x",1,&pose,"same_name",local)==!upload_failed,"memory upload result differs");
+  CHECK(saves==remote,"own spray saved as a download");
+  CASE("shared-local-upload-failed"){CHECK(!shared_sprays[1].count,"failed upload replaced geometry");return 0;}
+  CHECK(network_spray_ready(1,owner,"x",1,&pose,"same_name",local),"repeat failed");
+  CHECK(saves==remote,"repeat created another download");
+  CASE("shared-identical"){
+   CHECK(network_spray_ready(2,1,"x",1,&pose,"same_name",0),"remote identical image failed");
+   CHECK(saves==1,"another player's identical spray was not saved");
+  }
+  int before=loads;
+  halo_spray_render(0,&camera,&frustum);
+  CHECK(draws==(!strcmp(case_name,"shared-identical")?2:1),"memory decal not rendered");
+  if(!remote&&strcmp(case_name,"shared-identical"))CHECK(loads==before,"local decal reloaded from disk");
+  CHECK(saves==(remote||!strcmp(case_name,"shared-identical")),"render saved own image");return 0;
+ }
  if(!strncmp(case_name,"shared",6)){
   blocked=TRUE; /* A moving object arrived while the PNG was in transit. */
   struct spray_pose pose={{0,0,0},{-1.5f,0,0},0};

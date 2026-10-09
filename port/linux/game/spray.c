@@ -29,7 +29,6 @@ int network_spray_ready(int slot,int owner,const void *data,size_t size,
  struct collision_result collision;real_point3d origin;real_vector3d direction;
  float aspect,length=0;unsigned char hash[32];int i,count;
  static struct halo_spray_vertex vertices[HALO_SPRAY_MAXIMUM_VERTICES];
- (void)local;(void)owner;
  if(slot<0||slot>=SPRAY_SHARE_SLOTS||pose->bsp!=global_structure_bsp_index_get())return 0;
  for(i=0;i<3;i++){
   if(!isfinite(pose->origin[i])||fabsf(pose->origin[i])>32768||!isfinite(pose->direction[i]))return 0;
@@ -43,7 +42,13 @@ int network_spray_ready(int slot,int owner,const void *data,size_t size,
    &origin,&direction,NONE,&collision)||collision.type!=_collision_result_structure)return 0;
  count=decal_build_spray_geometry(&collision,aspect,vertices,HALO_SPRAY_MAXIMUM_VERTICES);if(!count)return 0;
  crypto_blake2b(hash,32,data,size);
- if(!shared_sprays[slot].path[0]||memcmp(hash,shared_sprays[slot].hash,32)){
+ /* Local publication and host echoes never create a downloaded copy. Use the
+  * published bytes so changing spray.png cannot change an existing decal. */
+ if(local||network_spray_is_local(owner)){
+  if(!halo_spray_image_load_bytes(slot,data,size,&aspect))return 0;
+  shared_sprays[slot].path[0]=0;shared_sprays[slot].dirty=0;
+  memcpy(shared_sprays[slot].hash,hash,32);
+ }else if(!shared_sprays[slot].path[0]||memcmp(hash,shared_sprays[slot].hash,32)){
   char path[4096];if(!halo_spray_file_save(data,size,name,path,sizeof(path),&aspect))return 0;
   memcpy(shared_sprays[slot].path,path,strlen(path)+1);memcpy(shared_sprays[slot].hash,hash,32);shared_sprays[slot].dirty=1;
  }

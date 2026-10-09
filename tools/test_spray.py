@@ -78,6 +78,17 @@ int main(int argc,char **argv){
  image(argv[1],"encoded-large.png");CHECK(!spray_image_load(&aspect));CHECK(spray_textures[0]==prior);
  void *bytes=NULL;size_t byte_count=0;CHECK(!halo_spray_file_read(&bytes,&byte_count)&&!bytes&&!byte_count);
  image(argv[1],"rgba.png");CHECK(halo_spray_file_read(&bytes,&byte_count));
+ CHECK(spray_image_load_bytes(2,bytes,byte_count,&aspect)&&aspect==1);
+ GLuint memory_texture=spray_textures[2];CHECK(memory_texture);
+ for(int i=0;i<6;i++)quad[i].position[2]=.3f;
+ glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);halo_spray_image_draw_slot(2,quad,6);
+ glReadPixels(16,16,1,1,GL_RGBA,GL_UNSIGNED_BYTE,p);CHECK(p[0]>245&&p[1]<5&&p[2]<5);
+ CHECK(!spray_image_load_bytes(-1,bytes,byte_count,&aspect));
+ CHECK(!spray_image_load_bytes(SPRAY_SHARE_SLOTS,bytes,byte_count,&aspect));
+ CHECK(!spray_image_load_bytes(2,NULL,byte_count,&aspect));
+ CHECK(!spray_image_load_bytes(2,bytes,0,&aspect));
+ CHECK(!spray_image_load_bytes(2,bytes,SPRAY_SHARE_LIMIT+1,&aspect));
+ CHECK(!spray_image_load_bytes(2,"bad",3,&aspect)&&spray_textures[2]==memory_texture);
  char saved[4096],again[4096];CHECK(halo_spray_file_save(bytes,byte_count,"../../profile/:evil",saved,sizeof(saved),&aspect));
  CHECK(strstr(saved,"/spray_profileevil_")&&!strstr(saved,".."));
  CHECK(halo_spray_file_save(bytes,byte_count,"../../profile/:evil",again,sizeof(again),&aspect));CHECK(strcmp(saved,again));

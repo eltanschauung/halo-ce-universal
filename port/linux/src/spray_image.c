@@ -194,10 +194,7 @@ int spray_image_load_slot(int slot, const char *path, float *aspect)
 	Sint64 length;
 	size_t size = 0;
 	void *data;
-	unsigned char *pixels;
-	int width, height, channels;
-	GLuint texture;
-	GLint active, bound, unpack_buffer, alignment, row_length, skip_rows, skip_pixels;
+	int result;
 	if (slot < 0 || slot >= SPRAY_SHARE_SLOTS || !path)
 		return 0;
 	file = SDL_IOFromFile(path, "rb");
@@ -220,8 +217,20 @@ int spray_image_load_slot(int slot, const char *path, float *aspect)
 		SDL_free(data);
 		return 0;
 	}
-	pixels = data ? stbi_load_from_memory(data, (int)size, &width, &height, &channels, 4) : NULL;
+	result = spray_image_load_bytes(slot, data, size, aspect);
 	SDL_free(data);
+	return result;
+}
+
+int spray_image_load_bytes(int slot, const void *data, size_t size, float *aspect)
+{
+	unsigned char *pixels;
+	int width, height, channels;
+	GLuint texture;
+	GLint active, bound, unpack_buffer, alignment, row_length, skip_rows, skip_pixels;
+	if (slot < 0 || slot >= SPRAY_SHARE_SLOTS || !data || !size || size > SPRAY_SHARE_LIMIT)
+		return 0;
+	pixels = stbi_load_from_memory(data, (int)size, &width, &height, &channels, 4);
 	if (!pixels)
 	{
 		console_printf(FALSE, "Spray Image: invalid PNG (maximum 2048 x 2048)");

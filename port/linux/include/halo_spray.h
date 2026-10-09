@@ -37,6 +37,8 @@ void halo_spray_draw(struct halo_spray_clip_vertex const *vertices, int count);
 int spray_image_load(float *aspect);
 int halo_spray_image_load_slot(int slot, const char *path, float *aspect);
 int spray_image_load_slot(int slot, const char *path, float *aspect);
+int halo_spray_image_load_bytes(int slot, const void *data, size_t size, float *aspect);
+int spray_image_load_bytes(int slot, const void *data, size_t size, float *aspect);
 void halo_spray_image_draw_slot(int slot, struct halo_spray_clip_vertex const *vertices, int count);
 void halo_spray_draw_slot(int slot, struct halo_spray_clip_vertex const *vertices, int count);
 int halo_spray_file_read(void **data, size_t *size);
@@ -51,6 +53,7 @@ void network_spray_handle_message(long machine, const void *message, unsigned sh
 void network_spray_machine_joined(long machine);
 void network_spray_reset(void);
 int network_spray_publish(struct spray_pose pose);
+int network_spray_is_local(int owner);
 long network_spray_unit(int machine);
 int network_spray_ready(int slot, int owner, const void *data, size_t size,
  const struct spray_pose *pose, const char *name, int local);

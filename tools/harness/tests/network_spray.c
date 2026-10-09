@@ -71,7 +71,9 @@ int main(int argc,char **argv){const char *case_name=argc>1?argv[1]:"";struct sp
   snprintf(file_path,sizeof(file_path),"/tmp/halo-spray-ownership-%ld.png",(long)getpid());
   FILE *file=fopen(file_path,"wb");CHECK(file,"fixture open failed");CHECK(fwrite("image bytes",1,11,file)==11,"fixture write failed");CHECK(!fclose(file),"fixture close failed");
   player.network_player_data.machine_index=0;
+  CHECK(!network_spray_is_local(0),"inactive share has a local owner");
   network_spray_update();CHECK(share,"share was not created");
+  CHECK(network_spray_is_local(0)&&!network_spray_is_local(1),"wrong local spray owner");
   if(!strcmp(case_name,"publish-client")){host_role=0;share->host=0;share->peers[0].capable=1;}
   if(!strcmp(case_name,"publish-rejected"))blocked=TRUE;
   if(!strcmp(case_name,"publish-ready-failed"))ready=FALSE;
@@ -84,7 +86,7 @@ int main(int argc,char **argv){const char *case_name=argc>1?argv[1]:"";struct sp
    CHECK(!file_allocation&&file_allocations==file_releases,"file buffer was leaked or not released by its owner");
   }
   CHECK(file_allocations==((!strcmp(case_name,"publish-missing")||!strcmp(case_name,"publish-unavailable"))?0:32),"publish path did not read PNGs");
-  network_spray_reset();unlink(file_path);return 0;
+  network_spray_reset();CHECK(!network_spray_is_local(0),"reset retained local ownership");unlink(file_path);return 0;
  }
  CASE("transport"){unsigned char message[24]={0};message[2]=SPRAY_SHARE_TYPE;message[13]=1;host_role=1;CHECK(spray_send(NULL,1,message,24,1)&&last_reliable,"host stream");CHECK(spray_send(NULL,1,message,24,0)&&!last_reliable,"host datagram");host_role=0;CHECK(spray_send(NULL,0,message,24,1)&&last_reliable,"client stream");CHECK(sends==3,"wrong route");return 0;}
  CASE("owner") {CHECK(!spray_accept(NULL,2,&pose,name),"other machine's unit accepted");return 0;}

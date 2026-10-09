@@ -28,6 +28,11 @@ static void *session;
 static unsigned long last_spray[SPRAY_SHARE_PEERS];
 static byte has_sprayed[SPRAY_SHARE_PEERS];
 
+int network_spray_is_local(int owner)
+{
+	return share && owner == local_machine;
+}
+
 long network_spray_unit(int machine)
 {
 	struct data_iterator iterator;
