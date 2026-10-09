@@ -81,13 +81,14 @@ int main(int argc, char **argv)
 	{
 		struct game_input_state state = keyboard(crouch | forward);
 		CHECK(crouches(state, 0, FALSE), "cardinal cap fails gate");
-		state.forward_movement = next_positive_float(state.forward_movement);
-		CHECK(!crouches(state, 0, FALSE), "cap is below the largest safe cardinal float");
+		CHECK(state.forward_movement == 0.97f, "upstream cardinal crouch cap changed");
+		state.forward_movement = 0.98f;
+		CHECK(!crouches(state, 0, FALSE), "strict cardinal cutoff accepted");
 		state = keyboard(crouch | forward | FLAG(HALO_KEYBOARD_STRAFE_LEFT));
 		CHECK(crouches(state, 0, FALSE), "diagonal cap fails gate");
-		state.forward_movement = next_positive_float(state.forward_movement);
-		state.strafe = next_positive_float(state.strafe);
-		CHECK(!crouches(state, 0, FALSE), "diagonal components are below the largest safe floats");
+		state.forward_movement /= 0.97f;
+		state.strafe /= 0.97f;
+		CHECK(!crouches(state, 0, FALSE), "full diagonal input retained crouch");
 	}
 	else CASE("run-and-release")
 	{

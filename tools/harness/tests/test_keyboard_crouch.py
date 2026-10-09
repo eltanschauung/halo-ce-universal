@@ -16,8 +16,8 @@ CASES = ["cardinals", "diagonals", "maximum-safe-input", "run-and-release",
 FLAGS = ("-march=x86-64", "-ffp-contract=off")
 
 NEGATIVE_CONTROLS = {
-    "original-full-speed": (("length *= 0.97999996f;", "length *= 1.f;"), "cardinals"),
-    "at-the-strict-cutoff": (("length *= 0.97999996f;", "length *= 0.98f;"), "cardinals"),
+    "original-full-speed": (("length *= 0.97f;", "length *= 1.f;"), "cardinals"),
+    "at-the-strict-cutoff": (("length *= 0.97f;", "length *= 0.98f;"), "cardinals"),
     "unnormalized-diagonals": (("x && y ? 0.70710678f : 1.f", "1.f"), "diagonals"),
     "slows-running-too": (("TEST_FLAG(held, HALO_KEYBOARD_CROUCH)", "TRUE"), "run-and-release"),
     "uses-controller-crouch": (("TEST_FLAG(held, HALO_KEYBOARD_CROUCH)",

@@ -422,7 +422,14 @@ def main():
         'void WINAPI D3DDevice_BeginVisibilityTest(', 'HRESULT WINAPI D3DDevice_EndVisibilityTest(',
         'static GLuint visibility_unscaled(', 'HRESULT WINAPI D3DDevice_GetVisibilityTestResult('))
     body = definitions + device + 'static void visibility_init(void) {\n' + init + atomic + '\n}\n' + functions
-    body += '\nstatic void test_frame_advance(void) {device.frame++;}\n'
+    batched = 'visibility_batches[2]' in source
+    if batched:
+        body += block(source, 'static void visibility_copy_batch(')
+        # Two presents resolve the previous-frame batch; finish only in this
+        # GL probe so pixel assertions read completed GPU writes.
+        body += '\nstatic void test_frame_advance(void) {device.frame++;visibility_copy_batch();device.frame++;visibility_copy_batch();glFinish();}\n'
+    else:
+        body += '\nstatic void test_frame_advance(void) {device.frame++;}\n'
     caller = CALLER + block((ROOT / 'source/rasterizer/xbox/rasterizer_xbox_widgets.c').read_text(),
                            'long _rasterizer_widget_get_occlusion_test_result(')
     compiler = [args.cc, '-std=gnu11', '-O2', '-fuse-ld=lld']
@@ -432,7 +439,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='halo-visibility-test-') as directory:
         path = Path(directory)
         modes = [('desktop', [])] if args.desktop_only else [('desktop', []), ('android', ['-DHALO_ANDROID'])]
-        for name, flags in ([] if args.benchmark_only else modes):
+        for name, flags in ([] if args.benchmark_only or batched else modes):
             c, exe = path / (name + '.c'), path / (name + '.exe')
             c.write_text(COMMON + FAKE_GL + body + caller + FAKE_TESTS)
             subprocess.run([*compiler, *flags, str(c), '-o', str(exe)], check=True)
