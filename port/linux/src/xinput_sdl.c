@@ -308,7 +308,7 @@ static void keys_held_over_switch(struct platform_input_state *input)
 {
 	static unsigned char held[SDL_SCANCODE_COUNT];
 	static int context = -1;
-	int next_context = (input->menus != FALSE) | (console_is_active() ? 2 : 0);
+	int next_context = (input->menus != FALSE) | (console_is_active() ? 2 : 0) | (text_typing ? 4 : 0);
 	int scancode;
 
 	if (context != next_context)
