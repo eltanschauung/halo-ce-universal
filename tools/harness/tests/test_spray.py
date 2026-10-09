@@ -8,12 +8,10 @@ from harness import build, enum_with, function, mutated, read, run, structure
 
 CASES = ['wall', 'edge', 'aspect', 'floor', 'invisible', 'broken-ring', 'capacity',
          'cooldown', 'failed-cooldown', 'singleplayer', 'network', 'multiplayer', 'split-screen', 'menu', 'pause', 'cinematic',
-         'dead', 'blocked', 'missing-image', 'replace', 'reset', 'input']
+         'dead', 'blocked', 'missing-image', 'replace', 'reset', 'input', 'shared', 'shared-bsp', 'shared-nan']
 CONTROLS = {
     'short-cooldown': ('>= 4 * TICKS_PER_SECOND', '>= 3 * TICKS_PER_SECOND', 'cooldown'),
-    'failed-cooldown': ('if (spray_vertex_count)\n\t\t\t{', 'if (TRUE)\n\t\t\t{', 'failed-cooldown'),
-    'network-allowed': ('game_connection() == _game_connection_local &&', '', 'network'),
-    'multiplayer-allowed': ('!game_engine_running() &&', '', 'multiplayer'),
+    'failed-cooldown': ('if (placed)\n\t\t\t{', 'if (TRUE || placed)\n\t\t\t{', 'failed-cooldown'),
     'invisible-allowed': ('FLAG(_collision_surface_invisible_bit) |', '', 'invisible'),
     'stale-checkpoint': ('spray_vertex_count = 0;', ';', 'reset'),
     'repeat-input': ('down && !was_down && gameplay', 'down && was_down && gameplay', 'input'),
@@ -43,7 +41,7 @@ def generated(control=None):
     types = types[:start] + types[end:] + declarations
     for name in ['collision_surface', 'collision_edge', 'collision_vertex']:
         types += structure(read('source/physics/collision_bsp_definitions.h'), name) + '\n'
-    types += read('port/linux/include/halo_spray.h') + '\n'
+    types += read('port/linux/include/halo_spray.h').replace('#include "spray_share.h"',read('port/linux/include/spray_share.h')) + '\n'
     table = read('source/math/real_math.c')
     types += table[table.index('short const global_projection3d_mappings'):table.index('};', table.index('short const global_projection3d_mappings')) + 2]
     roots = [function(decal, name) for name in ['decal_projection_create', 'decal_clip_to_surface',

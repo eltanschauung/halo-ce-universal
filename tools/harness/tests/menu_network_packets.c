@@ -13,6 +13,8 @@ static int admitted, broadcasts, warnings, errors, identity_reads, record_count,
 static char record_line[512];
 static struct distributed_client_identity distributed_client_identities[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
 static boolean main_menu_is_active(void) { return menu; }
+static int network_spray_handles_message(const void *message,word size){(void)message;(void)size;return 0;}
+static void network_spray_handle_message(long machine,const void *message,word size){(void)machine;(void)message;(void)size;}
 /* Voice transport has its own lobby-safe dispatcher; gameplay still needs
    the admission guard below it. Decode coverage lives in the voice tests. */
 static boolean network_voice_handles_message(message_header const *message, word size)

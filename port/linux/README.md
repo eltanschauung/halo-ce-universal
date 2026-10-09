@@ -122,7 +122,7 @@ gamepads' only.
 | show the scores (hold) | tab |
 | pause menu | escape |
 | screenshot | F10 |
-| spray image (singleplayer) | T |
+| spray image | T |
 | talk in voice chat (hold) | V |
 
 Always: \` opens the developer console, F12 releases or captures the mouse,
@@ -964,15 +964,27 @@ can optimize that code for each processor:
 The x87 control and status words (`_control87`, `_statusfp`, `_clearfp` in
 `src/msvc_crt.c`) use `fenv.h`. On Android, they use the FPCR and FPSR.
 
-### Singleplayer sprays
+### Image sprays (fork feature)
 
-Controls Setup > Actions has **Spray Image**, after Screenshot, default **T**.
-Put `spray.png` beside the executable. Aim at nearby solid level geometry and
-press the binding once; one spray is kept, replacing the previous one. PNG
-transparency and aspect ratio are preserved. RGB, RGBA, grayscale, palette and
-interlaced PNGs are supported, up to 2048 x 2048 pixels and 8 MiB encoded.
-Successful placements play either plasma-rifle overheat2 or overheat3 at random
-and start a four-second game-time cooldown. Failed attempts remain silent and
-do not start the cooldown. The file is reloaded on each placement. Sprays are
-temporary: checkpoint reloads, BSP changes and level changes clear them. Multiplayer and co-op are
-disabled; no map, checkpoint, gameplay state or network packets are modified.
+Spray Image follows Screenshot in Controls Setup > Actions and defaults to T.
+Put the source PNG at `sprays/spray.png` beside the executable (next to `maps/`).
+The folder is created automatically. PNGs are limited to 2 MiB encoded and
+2048 pixels per dimension; decoder allocations and GPU residency are bounded.
+The four-second cooldown and random plasma-rifle overheat2/overheat3 sound are
+preserved. Sprays use actual level-surface decal clipping and depth testing.
+They are temporary visuals outside checkpoints, cleared on map/BSP changes.
+
+In multiplayer, capable clients upload to the host using the existing connection;
+the host validates the player's live unit, wall ray, distance and cooldown, then
+relays to other capable clients. Received PNGs are saved as
+`sprays/spray_<profile>_<YYYY-MM-DD_HH.MM.SS>_<sequence>.png`, with sanitized
+profile names. Identical images are cached; new placements need no new download.
+Up to 16 recent player images are retained in memory, with four concurrent
+downloads, a 64 KiB/s aggregate sending budget, and a 64 MiB GPU budget.
+Downloads on disk remain until deleted by the user.
+
+The extension leaves the upstream network version and gameplay packets unchanged.
+Capability negotiation prevents image/placement traffic to upstream clients;
+an upstream host ignores three small probes and sprays remain local in that game.
+Shared sprays require a spray-capable host and receiving clients. One local
+player per machine is supported. This is a fork feature, with no upstream PR.

@@ -284,7 +284,7 @@ static const struct config_setting config_settings[] =
 	{ "controls.screenshot", _config_string, "\"F10\"", "HALO_KEY_SCREENSHOT", _environment_value, _platform_all,
 		"Save a PNG screenshot beside maps/ (press once per capture)." },
 	{ "controls.spray", _config_string, "\"T\"", "HALO_KEY_SPRAY", _environment_value, _platform_all,
-		"Spray spray.png from the executable folder onto a nearby wall (singleplayer)." },
+		"Spray sprays/spray.png onto a nearby wall; shared with compatible multiplayer peers." },
 	{ "controls.push_to_talk", _config_string, "\"V\"", "HALO_KEY_PUSH_TO_TALK", _environment_value, _platform_all,
 		"Voice chat: talk while it is held (audio.voice_chat \"push_to_talk\")." },
 

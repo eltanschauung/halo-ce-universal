@@ -809,6 +809,7 @@ void network_votekick_machine_joined(long machine_index);
 boolean network_votekick_kept_out(unsigned long address, char const *hardware_id);
 /* port/linux/game/network_voice.c's (voice chat: each machine's key) */
 void network_voice_machine_joined(long machine_index);
+void network_spray_machine_joined(long machine_index);
 /* port/linux/src/p2p.c's */
 enum
 {
@@ -2140,6 +2141,7 @@ boolean network_game_server_accept_client_machine_into_game(
 				network_votekick_machine_joined(machine_index);
 				/* (and its voice chat key) */
 				network_voice_machine_joined(machine_index);
+				network_spray_machine_joined(machine_index);
 			}
 			else
 			{

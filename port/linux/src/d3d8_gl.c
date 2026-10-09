@@ -3449,6 +3449,17 @@ int halo_spray_image_load(float *aspect)
 	return spray_image_load(aspect);
 }
 
+int halo_spray_image_load_slot(int slot,const char *path,float *aspect)
+{
+ draw_flush();return spray_image_load_slot(slot,path,aspect);
+}
+
+void halo_spray_draw_slot(int slot,struct halo_spray_clip_vertex const *vertices,int count)
+{
+ BOOL has_depth=FALSE;draw_flush();
+ if(device.gl_ready&&bind_targets(&has_depth)&&has_depth){apply_raster_state(has_depth);halo_spray_image_draw_slot(slot,vertices,count);}
+}
+
 void halo_spray_draw(struct halo_spray_clip_vertex const *vertices, int count)
 {
 	BOOL has_depth = FALSE;

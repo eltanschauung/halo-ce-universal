@@ -55,7 +55,6 @@ static struct collision_result hit;
 static boolean game_in_progress(void){return active;}
 static boolean main_menu_is_active(void){return menu;}
 static short game_connection(void){return connection;}
-static boolean game_engine_running(void){return multiplayer;}
 static short local_player_count(void){return players;}
 static boolean game_time_get_paused(void){return paused;}
 static boolean cinematic_in_progress(void){return cinematic;}
@@ -64,7 +63,16 @@ int platform_spray_take_request(void){boolean old=request;request=FALSE;return o
 void platform_spray_request(void){request=TRUE;presses++;}
 int halo_spray_image_load(float *aspect){loads++;*aspect=1;return !missing;}
 void halo_spray_image_forget(void){forgotten++;}
+static short global_structure_bsp_index_get(void){return 0;}
+void network_spray_reset(void){}
+long network_spray_unit(int owner){(void)owner;return unit;}
+int network_spray_publish(struct spray_pose pose){(void)pose;return 0;}
+int halo_spray_png_aspect(const void *data,size_t size,float *aspect){(void)data;(void)size;*aspect=1;return !missing;}
+int halo_spray_file_save(const void *data,size_t size,const char *name,char *path,size_t capacity,float *aspect){(void)data;(void)size;(void)name;(void)capacity;strcpy(path,"fake.png");*aspect=1;return 1;}
+int halo_spray_image_load_slot(int slot,const char *path,float *aspect){(void)slot;(void)path;return halo_spray_image_load(aspect);}
+static void crypto_blake2b(uint8_t *hash,size_t count,const uint8_t *data,size_t size){(void)data;(void)size;memset(hash,1,count);}
 void halo_spray_draw(struct halo_spray_clip_vertex const *v,int count){CHECK(count>0&&count<=HALO_SPRAY_MAXIMUM_VERTICES,"bad draw size");CHECK(isfinite(v[0].position[0]),"invalid projection");draws++;}
+void halo_spray_draw_slot(int slot,struct halo_spray_clip_vertex const *v,int count){(void)slot;halo_spray_draw(v,count);}
 static boolean collision_test_vector(unsigned long flags,real_point3d const *p,real_vector3d const *v,long ignore,struct collision_result *out){
  CHECK(flags&FLAG(_collision_test_objects_bit),"objects must block sprays");CHECK(ignore==unit,"self not ignored");
  CHECK(fabs(v->i)==1.5f&&v->j==0&&v->k==0,"bad reach or direction");(void)p;rays++;*out=hit;return !blocked;
@@ -87,6 +95,14 @@ int main(int argc,char **argv)
  struct halo_spray_vertex output[HALO_SPRAY_MAXIMUM_VERTICES];
  struct render_camera camera={0};camera.forward.i=-1;
  struct render_frustum frustum={0};frustum.projection_valid=TRUE;for(int i=0;i<4;i++)frustum.projection_matrix[i][i]=1;
+ if(!strncmp(case_name,"shared",6)){
+  struct spray_pose pose={{0,0,0},{-1.5f,0,0},0};
+  CASE("shared-bsp"){pose.bsp=1;CHECK(!network_spray_ready(1,1,"x",1,&pose,"remote",0),"stale BSP accepted");return 0;}
+  CASE("shared-nan"){pose.direction[0]=NAN;CHECK(!network_spray_ready(1,1,"x",1,&pose,"remote",0),"NaN accepted");return 0;}
+  CHECK(network_spray_ready(1,1,"x",1,&pose,"remote",0)&&network_spray_ready(2,2,"y",1,&pose,"remote2",0),"shared placement failed");
+  halo_spray_render(0,&camera,&frustum);CHECK(draws==2&&shared_sprays[1].count==6&&shared_sprays[2].count==6,"player images overwrite each other");
+  halo_spray_reset();halo_spray_render(0,&camera,&frustum);CHECK(draws==2&&!shared_sprays[1].count,"shared checkpoint retained");return 0;
+ }
  CASE("input"){keyboard_spray(FLAG(HALO_KEYBOARD_SPRAY),TRUE);keyboard_spray(FLAG(HALO_KEYBOARD_SPRAY),TRUE);CHECK(presses==1,"held key repeats");keyboard_spray(0,TRUE);keyboard_spray(FLAG(HALO_KEYBOARD_SPRAY),FALSE);CHECK(presses==1,"menu spray");keyboard_spray(FLAG(HALO_KEYBOARD_SPRAY),TRUE);CHECK(presses==1,"held menu key leaked into game");return 0;}
  CASE("wall") {int n=decal_build_spray_geometry(&hit,1,output,HALO_SPRAY_MAXIMUM_VERTICES);CHECK(n==6,"wall count %d",n);for(int i=0;i<n;i++){CHECK(fabs(output[i].position[0]-.0002f)<1e-6f,"not lifted from wall");CHECK(fabs(output[i].uv[1]-(.5f-2*output[i].position[2]))<1e-5f,"image vertically reversed");CHECK(fabs(output[i].uv[0]-(.5f+2*output[i].position[1]))<1e-5f,"image mirrored");}return 0;}
  CASE("edge") {wall(.1f);int n=decal_build_spray_geometry(&hit,1,output,HALO_SPRAY_MAXIMUM_VERTICES);CHECK(n==6,"edge count %d",n);for(int i=0;i<n;i++){CHECK(fabs(output[i].position[1])<=.10001f&&fabs(output[i].position[2])<=.10001f,"over wall edge");CHECK(output[i].uv[0]>.29f&&output[i].uv[0]<.71f,"clipped UV changed");}return 0;}
@@ -116,7 +132,7 @@ int main(int argc,char **argv)
  CASE("blocked") blocked=TRUE;
  CASE("missing-image") missing=TRUE;
  request=TRUE;halo_spray_render(0,&camera,&frustum);CHECK(!request,"unconsumed input");
- if(!strcmp(case_name,"singleplayer")||!strcmp(case_name,"replace")||!strcmp(case_name,"reset")){
+ if(!strcmp(case_name,"singleplayer")||!strcmp(case_name,"network")||!strcmp(case_name,"multiplayer")||!strcmp(case_name,"replace")||!strcmp(case_name,"reset")){
   CHECK(loads==1&&draws==1&&spray_vertex_count==6,"placement failed");
   CASE("replace"){tick=120;request=TRUE;halo_spray_render(0,&camera,&frustum);CHECK(loads==2&&draws==2&&spray_vertex_count==6,"sprays accumulated");}
   CASE("reset"){request=TRUE;halo_spray_reset();halo_spray_render(0,&camera,&frustum);CHECK(!request&&!spray_vertex_count&&draws==1&&forgotten==1,"checkpoint retained spray");}

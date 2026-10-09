@@ -29,7 +29,7 @@ static struct halo_spray_clip_vertex quad[6]={
  {{-1,-1,.3f,1},{0,1}},{{1,1,.3f,1},{1,0}},{{-1,1,.3f,1},{0,0}}};
 static void image(const char *root,const char *name){
  char from[4096],to[4096];size_t size;void *data;
- SDL_snprintf(from,sizeof(from),"%s/%s",root,name);SDL_snprintf(to,sizeof(to),"%sspray.png",SDL_GetBasePath());
+ SDL_snprintf(from,sizeof(from),"%s/%s",root,name);CHECK(spray_source_path(to,sizeof(to)));
  data=SDL_LoadFile(from,&size);CHECK(data);CHECK(SDL_SaveFile(to,data,size));SDL_free(data);
 }
 int main(int argc,char **argv){
@@ -73,12 +73,23 @@ int main(int argc,char **argv){
  glColorMask(1,1,1,1);glDepthMask(1);glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
  for(int i=0;i<6;i++)quad[i].position[2]=.6f;
  halo_spray_image_draw(quad,6);glReadPixels(16,16,1,1,GL_RGBA,GL_UNSIGNED_BYTE,p);CHECK(p[0]>=25&&p[0]<=26&&p[1]==51&&p[2]>=76&&p[2]<=77);
- GLuint prior=spray_texture;image(argv[1],"invalid.png");CHECK(!spray_image_load(&aspect));CHECK(spray_texture==prior);
- image(argv[1],"large.png");CHECK(!spray_image_load(&aspect));CHECK(spray_texture==prior);
+ GLuint prior=spray_textures[0];image(argv[1],"invalid.png");CHECK(!spray_image_load(&aspect));CHECK(spray_textures[0]==prior);
+ image(argv[1],"large.png");CHECK(!spray_image_load(&aspect));CHECK(spray_textures[0]==prior);
+ image(argv[1],"encoded-large.png");CHECK(!spray_image_load(&aspect));CHECK(spray_textures[0]==prior);
+ void *bytes=NULL;size_t byte_count=0;CHECK(!halo_spray_file_read(&bytes,&byte_count)&&!bytes&&!byte_count);
+ image(argv[1],"rgba.png");CHECK(halo_spray_file_read(&bytes,&byte_count));
+ char saved[4096],again[4096];CHECK(halo_spray_file_save(bytes,byte_count,"../../profile/:evil",saved,sizeof(saved),&aspect));
+ CHECK(strstr(saved,"/spray_profileevil_")&&!strstr(saved,".."));
+ CHECK(halo_spray_file_save(bytes,byte_count,"../../profile/:evil",again,sizeof(again),&aspect));CHECK(strcmp(saved,again));
+ size_t received_count;void *received=SDL_LoadFile(saved,&received_count);CHECK(received&&received_count==byte_count&&!memcmp(received,bytes,byte_count));SDL_free(received);
+ CHECK(spray_image_load_slot(1,saved,&aspect));CHECK(spray_textures[1]&&spray_textures[0]==prior);
+ CHECK(!spray_image_load_slot(-1,saved,&aspect)&&!spray_image_load_slot(SPRAY_SHARE_SLOTS,saved,&aspect));
+ CHECK(!halo_spray_file_save("bad",3,"bad",again,sizeof(again),&aspect));SDL_free(bytes);CHECK(!spray_decode_bytes);
+ CHECK(SDL_RemovePath(saved));CHECK(SDL_RemovePath(again));
  const char *formats[]={"rgb.png","palette.png","gray.png","rgba.png"};
  for(int i=0;i<4;i++){image(argv[1],formats[i]);CHECK(spray_image_load(&aspect));CHECK(aspect==1);}
- halo_spray_image_forget();CHECK(!spray_texture);halo_spray_image_forget();
- char path[4096];SDL_snprintf(path,sizeof(path),"%sspray.png",SDL_GetBasePath());CHECK(SDL_RemovePath(path));CHECK(!spray_image_load(&aspect));
+ halo_spray_image_forget();for(int i=0;i<SPRAY_SHARE_SLOTS;i++)CHECK(!spray_textures[i]);halo_spray_image_forget();
+ char path[4096];CHECK(spray_source_path(path,sizeof(path)));CHECK(SDL_RemovePath(path));CHECK(!spray_image_load(&aspect));
  CHECK(glGetError()==GL_NO_ERROR);CHECK(invalidations);SDL_GL_DestroyContext(c);SDL_DestroyWindow(w);SDL_Quit();puts("Spray PNG and GL regressions passed");return 0;
 }
 '''
@@ -109,6 +120,7 @@ def main():
         for mode, name in [('RGB', 'rgb'), ('P', 'palette'), ('L', 'gray')]:
             image.convert(mode).save(path / f'{name}.png')
         (path / 'invalid.png').write_bytes(b'not a png')
+        (path / 'encoded-large.png').write_bytes(b'x' * (2 * 1024 * 1024 + 1))
         Image.new('RGB', (2049, 1)).save(path / 'large.png')
         (path / 'spray.c').write_text(PREFIX + source + TEST)
         subprocess.run([*command, str(path / 'spray.c'), *libraries, '-o', str(path / 'spray.exe')], check=True)

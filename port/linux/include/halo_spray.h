@@ -1,8 +1,9 @@
-/* Singleplayer image decals. All storage is outside the saved game state. */
+/* Image decals. All storage is outside the saved game state. */
 #ifndef HALO_SPRAY_H
 #define HALO_SPRAY_H
 
 #define HALO_SPRAY_MAXIMUM_VERTICES 3072
+#include "spray_share.h"
 
 struct halo_spray_vertex
 {
@@ -28,11 +29,28 @@ void halo_spray_render(short local_player_index, struct render_camera const *cam
 int decal_build_spray_geometry(struct collision_result const *collision, float aspect,
 	struct halo_spray_vertex *vertices, int capacity);
 
-/* Native renderer: PNG reload on each successful placement, one texture. */
+/* Native renderer: independent image slots, with bounded GPU residency. */
 int halo_spray_image_load(float *aspect);
 void halo_spray_image_forget(void);
 void halo_spray_image_draw(struct halo_spray_clip_vertex const *vertices, int count);
 void halo_spray_draw(struct halo_spray_clip_vertex const *vertices, int count);
 int spray_image_load(float *aspect);
+int halo_spray_image_load_slot(int slot, const char *path, float *aspect);
+int spray_image_load_slot(int slot, const char *path, float *aspect);
+void halo_spray_image_draw_slot(int slot, struct halo_spray_clip_vertex const *vertices, int count);
+void halo_spray_draw_slot(int slot, struct halo_spray_clip_vertex const *vertices, int count);
+int halo_spray_file_read(void **data, size_t *size);
+int halo_spray_file_save(const void *data, size_t size, const char *name,
+ char *path, size_t capacity, float *aspect);
+int halo_spray_png_aspect(const void *data, size_t size, float *aspect);
+void network_spray_update(void);
+int network_spray_handles_message(const void *message, unsigned short size);
+void network_spray_handle_message(long machine, const void *message, unsigned short size);
+void network_spray_machine_joined(long machine);
+void network_spray_reset(void);
+int network_spray_publish(struct spray_pose pose);
+long network_spray_unit(int machine);
+int network_spray_ready(int slot, int owner, const void *data, size_t size,
+ const struct spray_pose *pose, const char *name, int local);
 
 #endif

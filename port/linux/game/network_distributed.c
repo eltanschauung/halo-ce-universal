@@ -74,6 +74,7 @@ machine (their datum identifiers need not be).
 #include "network_coop.h"
 #include "network_distributed.h"
 #include "network_voice.h"
+#include "halo_spray.h"
 
 #include <limits.h>
 #include <stdio.h>
@@ -3915,6 +3916,11 @@ void network_distributed_handle_message(
 	word entry_size;
 
 	/* (voice chat's, in the lobby too: network_voice.c) */
+	if(network_spray_handles_message(message,size))
+	{
+		network_spray_handle_message(machine_index,message,size);
+		return;
+	}
 	if (network_voice_handles_message(message, size))
 	{
 		network_voice_handle_message(machine_index, message, size);
