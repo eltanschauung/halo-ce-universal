@@ -1,6 +1,7 @@
 #include "harness.h"
 #include <stdint.h>
 #include <math.h>
+#include <unistd.h>
 #include "api.inc"
 typedef unsigned short word;typedef word message_header;
 #define real_point3d spray_test_point
@@ -14,7 +15,7 @@ struct network_game_client {int unused;};
 struct distributed_message_header {word header;byte type,count;int32_t game_time;};
 static struct player_datum player={0,{1},7,{'a','l','i','c','e',0}};
 static void *player_data=&player;
-static boolean active=TRUE,menu,blocked,alive=TRUE;static long tick=120;
+static boolean active=TRUE,menu,blocked,alive=TRUE,ready=TRUE;static long tick=120;
 static struct network_game_client client;static int sends;static int last_reliable;
 #define TICKS_PER_SECOND 30
 #define _collision_result_structure 2
@@ -48,10 +49,43 @@ boolean network_distributed_server_send_to_machine_reliably(long machine,void *d
 short network_distributed_server_machines(long *indices,short capacity){CHECK(capacity>=1,"capacity");indices[0]=1;return 1;}
 void posix_random_bytes(void *data,unsigned int size){memset(data,42,size);}
 unsigned long system_milliseconds(void){return 1000;}
-int network_spray_ready(int slot,int owner,const void *data,size_t size,const struct spray_pose *pose,const char *name,int local){(void)slot;(void)owner;(void)data;(void)size;(void)pose;(void)name;(void)local;return 1;}
-int halo_spray_file_read(void **data,size_t *size){*data=NULL;*size=0;return 0;}
+int network_spray_ready(int slot,int owner,const void *data,size_t size,const struct spray_pose *pose,const char *name,int local){(void)slot;(void)owner;(void)data;(void)size;(void)pose;(void)name;(void)local;return ready;}
+static char file_path[128];
+static void *file_allocation;
+static int file_allocations,file_releases;
+static int spray_source_path(char *path,size_t size){return snprintf(path,size,"%s",file_path)<(int)size;}
+static void *file_malloc(size_t size){CHECK(!file_allocation,"file buffer leaked");file_allocation=malloc(size);if(file_allocation)file_allocations++;return file_allocation;}
+static void file_free(void *data){if(data){CHECK(data==file_allocation,"file released an unowned buffer");free(data);file_allocation=NULL;file_releases++;}}
+#define console_printf(...) ((void)0)
+#define malloc file_malloc
+#define free file_free
+#include "provider.inc"
+#undef malloc
+#undef free
+#define MATCH_FILE(file) file
+#define MATCH_LINE(line) line
+static void debug_free(void *data,const char *file,long line){(void)data;(void)file;(void)line;CHECK(FALSE,"CRT spray buffer passed to engine allocator");}
 #include "under_test.inc"
 int main(int argc,char **argv){const char *case_name=argc>1?argv[1]:"";struct spray_pose pose={{0,0,.5f},{1.5f,0,0},4};char name[32]="spoofed";
+ if(!strncmp(case_name,"publish-",8)){
+  snprintf(file_path,sizeof(file_path),"/tmp/halo-spray-ownership-%ld.png",(long)getpid());
+  FILE *file=fopen(file_path,"wb");CHECK(file,"fixture open failed");CHECK(fwrite("image bytes",1,11,file)==11,"fixture write failed");CHECK(!fclose(file),"fixture close failed");
+  player.network_player_data.machine_index=0;
+  network_spray_update();CHECK(share,"share was not created");
+  if(!strcmp(case_name,"publish-client")){host_role=0;share->host=0;share->peers[0].capable=1;}
+  if(!strcmp(case_name,"publish-rejected"))blocked=TRUE;
+  if(!strcmp(case_name,"publish-ready-failed"))ready=FALSE;
+  if(!strcmp(case_name,"publish-missing"))unlink(file_path);
+  if(!strcmp(case_name,"publish-unavailable")){host_role=0;share->host=0;share->peers[0].capable=0;}
+  int expected=!strcmp(case_name,"publish-host")||!strcmp(case_name,"publish-client");
+  for(int i=0;i<32;i++){
+   tick+=120;
+   CHECK(network_spray_publish(pose)==expected,"publish result differs");
+   CHECK(!file_allocation&&file_allocations==file_releases,"file buffer was leaked or not released by its owner");
+  }
+  CHECK(file_allocations==((!strcmp(case_name,"publish-missing")||!strcmp(case_name,"publish-unavailable"))?0:32),"publish path did not read PNGs");
+  network_spray_reset();unlink(file_path);return 0;
+ }
  CASE("transport"){unsigned char message[24]={0};message[2]=SPRAY_SHARE_TYPE;message[13]=1;host_role=1;CHECK(spray_send(NULL,1,message,24,1)&&last_reliable,"host stream");CHECK(spray_send(NULL,1,message,24,0)&&!last_reliable,"host datagram");host_role=0;CHECK(spray_send(NULL,0,message,24,1)&&last_reliable,"client stream");CHECK(sends==3,"wrong route");return 0;}
  CASE("owner") {CHECK(!spray_accept(NULL,2,&pose,name),"other machine's unit accepted");return 0;}
  CASE("dead")alive=FALSE;

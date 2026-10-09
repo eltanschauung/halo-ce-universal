@@ -202,6 +202,6 @@ int network_spray_publish(struct spray_pose pose)
 	if (!spray_share_available(share) || !halo_spray_file_read(&data, &size))
 		return 0;
 	result = spray_share_publish(share, local_machine, data, size, pose, "");
-	free(data);
+	halo_spray_file_free(data);
 	return result;
 }

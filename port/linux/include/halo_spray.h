@@ -40,6 +40,8 @@ int spray_image_load_slot(int slot, const char *path, float *aspect);
 void halo_spray_image_draw_slot(int slot, struct halo_spray_clip_vertex const *vertices, int count);
 void halo_spray_draw_slot(int slot, struct halo_spray_clip_vertex const *vertices, int count);
 int halo_spray_file_read(void **data, size_t *size);
+/* Release file buffers in the native loader's allocator, outside Halo's heap. */
+void halo_spray_file_free(void *data);
 int halo_spray_file_save(const void *data, size_t size, const char *name,
  char *path, size_t capacity, float *aspect);
 int halo_spray_png_aspect(const void *data, size_t size, float *aspect);

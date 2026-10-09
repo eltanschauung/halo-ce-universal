@@ -103,6 +103,11 @@ int halo_spray_file_read(void **data, size_t *size)
 	return 1;
 }
 
+void halo_spray_file_free(void *data)
+{
+	free(data);
+}
+
 int halo_spray_png_aspect(const void *data, size_t size, float *aspect)
 {
 	int width, height, channels;

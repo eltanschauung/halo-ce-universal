@@ -84,7 +84,7 @@ int main(int argc,char **argv){
  size_t received_count;void *received=SDL_LoadFile(saved,&received_count);CHECK(received&&received_count==byte_count&&!memcmp(received,bytes,byte_count));SDL_free(received);
  CHECK(spray_image_load_slot(1,saved,&aspect));CHECK(spray_textures[1]&&spray_textures[0]==prior);
  CHECK(!spray_image_load_slot(-1,saved,&aspect)&&!spray_image_load_slot(SPRAY_SHARE_SLOTS,saved,&aspect));
- CHECK(!halo_spray_file_save("bad",3,"bad",again,sizeof(again),&aspect));SDL_free(bytes);CHECK(!spray_decode_bytes);
+ CHECK(!halo_spray_file_save("bad",3,"bad",again,sizeof(again),&aspect));halo_spray_file_free(bytes);CHECK(!spray_decode_bytes);
  CHECK(SDL_RemovePath(saved));CHECK(SDL_RemovePath(again));
  const char *formats[]={"rgb.png","palette.png","gray.png","rgba.png"};
  for(int i=0;i<4;i++){image(argv[1],formats[i]);CHECK(spray_image_load(&aspect));CHECK(aspect==1);}
