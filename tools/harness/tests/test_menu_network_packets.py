@@ -12,10 +12,11 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import CHECK_FAILED, build, constant, function, mutated, read, run  # noqa: E402
 
-CASES = ['menu-packets', 'game-packets', 'paused-game-packets', 'loading-packets',
+CASES = ['menu-voice', 'game-voice', 'menu-packets', 'game-packets', 'paused-game-packets', 'loading-packets',
          'short-packets', 'packet-transitions', 'menu-kick', 'game-kick',
          'menu-ban', 'game-ban', 'loading-ban']
 CONTROLS = {
+    'voice-not-dispatched': ('network_distributed_handle_message', 'if (network_voice_handles_message(message, size))', 'if (FALSE && network_voice_handles_message(message, size))', 'menu-voice'),
     'menu-packets-admitted': ('network_distributed_handle_message', '!distributed_game_in_progress()', '!game_in_progress()', 'menu-packets'),
     'menu-kick-broadcast': ('network_distributed_kick', 'distributed_game_in_progress()', 'game_in_progress()', 'menu-kick'),
     'menu-ban-broadcast': ('network_distributed_ban', 'if (distributed_game_in_progress())', 'if (game_in_progress())', 'menu-ban'),

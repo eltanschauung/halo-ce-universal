@@ -9,10 +9,21 @@ typedef word message_header;
 
 static struct { boolean initialized, active, paused; } clock_state = { TRUE, TRUE, FALSE }, *game_time_globals = &clock_state;
 static boolean menu;
-static int admitted, broadcasts, warnings, errors, identity_reads, record_count;
+static int admitted, broadcasts, warnings, errors, identity_reads, record_count, voice_packets;
 static char record_line[512];
 static struct distributed_client_identity distributed_client_identities[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
 static boolean main_menu_is_active(void) { return menu; }
+/* Voice transport has its own lobby-safe dispatcher; gameplay still needs
+   the admission guard below it. Decode coverage lives in the voice tests. */
+static boolean network_voice_handles_message(message_header const *message, word size)
+{
+ return size >= sizeof(message_header) && message[0] == 0x1234;
+}
+static void network_voice_handle_message(short machine, message_header const *message, word size)
+{
+ CHECK(machine == 1 && size == 4 && message[0] == 0x1234, "incorrect voice dispatch");
+ voice_packets++;
+}
 static void distributed_send_notice(const char *text) { CHECK(text[0], "empty notice"); broadcasts++; }
 static void console_warning(const char *format, ...) { warnings++; }
 static void error(int level, const char *format, ...) { errors++; }
@@ -59,6 +70,14 @@ int main(int argc, char **argv)
 	const char *case_name = argc > 1 ? argv[1] : "";
 	strcpy(distributed_client_identities[1].discord_id, "old-id");
 	strcpy(distributed_client_identities[1].discord_name, "old-name");
+	if (!strcmp(case_name, "menu-voice") || !strcmp(case_name, "game-voice"))
+	{
+		word message[2] = { 0x1234, 1 };
+		menu = !strcmp(case_name, "menu-voice");
+		network_distributed_handle_message(1, message, sizeof(message));
+		CHECK(voice_packets == 1 && !admitted, "voice reached gameplay dispatcher or was lost");
+		return 0;
+	}
 	CASE("menu-packets")
 	{
 		menu = TRUE;
