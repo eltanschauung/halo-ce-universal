@@ -53,6 +53,7 @@ OBJECTS.C
 #include "sound/game_sound.h"
 #include "structures/structure_bsp_definitions.h"
 #include "units/units.h"
+#include "coop_pickups.h" /* port: the host's extra campaign pickups */
 /* port: object_bounds_cache.c's */
 void object_bounds_cache_update(long object_index, real_point3d const *center, real radius);
 
@@ -3949,6 +3950,9 @@ long object_new_from_scenario(
 				if (result!=NONE)
 				{
 					object_type_place(result, scenario_object);
+					/* port: only authored campaign pickups get a pending extra
+					count; enemies' drops and ordinary object_new do not. */
+					coop_pickups_register(result, scenario_object, palette);
 					if (scenario_object->name_index!=NONE)
 					{
 						object_name_list_new(result, scenario_object->name_index);

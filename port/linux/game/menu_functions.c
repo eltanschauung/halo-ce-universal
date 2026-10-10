@@ -4798,6 +4798,8 @@ static struct gametype_option const gametype_options[] =
 		{ "off", "on", "shields_only", "explosives_only" } },
 	{ "coop_extra_enemies_spinner", _option_setting, 0, 0, 3, { 0 }, "network.coop_enemies_mode",
 		{ "none", "per_player", "multiplier" } },
+	{ "coop_extra_pickups_spinner", _option_setting, 0, 0, 2, { 0 }, "network.coop_pickups",
+		{ "false", "true" } },
 	{ "coop_enemies_per_player_spinner", _option_setting, 0, 0, 5, { 0 }, "network.coop_enemies",
 		{ "25", "50", "100", "150", "200" } },
 	{ "coop_enemies_multiplier_spinner", _option_setting, 0, 0, 5, { 0 }, "network.coop_enemies_multiplier",
@@ -5326,13 +5328,16 @@ static void gametype_option_help(struct widget_instance *list)
 		visible_set(named(list, "op_primary_weapon", 0), custom);
 		visible_set(named(list, "op_secondary_weapon", 0), custom);
 	}
-	/* (CO-OP OPTIONS: the row of the amount of the extra enemies chosen,
-	PER PLAYER's or MULTIPLIER's, in the one place) */
+	/* CO-OP OPTIONS: pickups share PER PLAYER independently of the enemy
+	mode, so both amount rows may be needed at once. */
 	if (named(list, "coop_extra_enemies_spinner", 0))
 	{
 		short mode = named(list, "coop_extra_enemies_spinner", 0)->parameters.list.selected_index;
 
-		visible_set(named(list, "op_coop_enemies_per_player", 0), mode == _cooperative_enemies_per_player);
+		struct widget_instance *pickups = named(list, "coop_extra_pickups_spinner", 0);
+
+		visible_set(named(list, "op_coop_enemies_per_player", 0), mode == _cooperative_enemies_per_player ||
+			(pickups && pickups->parameters.list.selected_index == 1));
 		visible_set(named(list, "op_coop_enemies_multiplier", 0), mode == _cooperative_enemies_multiplier);
 	}
 	/* (the server browser's filters, hidden: their helps are fewer than

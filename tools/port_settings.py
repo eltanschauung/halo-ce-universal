@@ -976,11 +976,15 @@ COOP_SETUP_SCREENS = [
         ]),
         ("coop_extra_enemies", "EXTRA ENEMIES:", ["NONE", "PER PLAYER", "STATIC MULTIPLIER"], [
             "Enemy squads are as the campaign has them.",
-            "Enemy squads grow with the players: by the amount\\nbelow for each player past the first.",
+            "Enemy squads grow with the players: by the value of\\n'Per Player' for each player past the first.",
             "Enemy squads are the amount below times as large,\\nhowever many players there are.",
         ]),
+        ("coop_extra_pickups", "EXTRA PICKUPS:", ["OFF", "ON"], [
+            "Pickups are as the campaign has them.",
+            "Pickup amounts such as weapons and overshields grow\\nwith the players: by the value of 'Per Player'\\nfor each player past the first.",
+        ]),
         ("coop_enemies_per_player", "PER PLAYER:", [f"{value}%" for value in COOP_ENEMIES_PERCENTAGES],
-         ["For each player past the first, enemy squads get\\nthis much more of themselves (100%: as many again)."] *
+         ["For each player past the first, enemy squads/pickups\\nget this much more of themselves (100%: as many again)."] *
          len(COOP_ENEMIES_PERCENTAGES)),
         ("coop_enemies_multiplier", "MULTIPLIER:", [f"{value}X" for value in COOP_ENEMIES_MULTIPLIERS],
          ["Each enemy squad is this many times as large."] * len(COOP_ENEMIES_MULTIPLIERS)),
@@ -993,9 +997,9 @@ COOP_SETUP_SCREENS = [
 ]
 # (their screens' titles)
 TITLES.update({f"{MT}/server_settings/{key}/header_{key}": title for key, title, _, _ in COOP_SETUP_SCREENS})
-# (the rows of a co-op options screen in one place, the one shown: PER
-# PLAYER's and MULTIPLIER's, by EXTRA ENEMIES')
-SETUP_OPTION_SAME_PLACE = {"coop_enemies_multiplier"}
+# Keep separate amount rows: pickups can use PER PLAYER while enemies
+# simultaneously use MULTIPLIER.
+SETUP_OPTION_SAME_PLACE = set()
 
 
 def _setup_option_screen(base: str, key: str, rows: list) -> list:
