@@ -435,6 +435,12 @@ static const struct config_setting config_settings[] =
 		"Online co-op's static multiplier of its enemies: each squad of enemies\n"
 		"a level places is this many times as large (2 to 32). MULTIPLIER in\n"
 		"co-op's Server Setup > Co-op Options writes its choice here." },
+	{ "network.coop_player_step", _config_integer, "1", "HALO_NET_COOP_PLAYER_STEP", _environment_value, _platform_all,
+		"Only increment per-player enemy squads/enabled pickups for each complete\n"
+		"group of this many players past the first (1 to 8). PLAYER STEP in\n"
+		"co-op's Server Setup > Co-op Options writes its choice here. A value of\n"
+		"2 at 50 percent gives 1-2 players 1x, 3-4 players 1.5x, and so on.\n"
+		"The static enemy multiplier does not use this setting." },
 	{ "network.brokers_file", _config_string, "\"brokers.txt\"",
 		"HALO_NET_BROKERS_FILE", _environment_value, _platform_all,
 		"The file of the public MQTT brokers through which the machines of an\n"

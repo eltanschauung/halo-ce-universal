@@ -59,10 +59,10 @@ static struct scenario_object_palette_entry palette_data[16];
 static struct tag_block placements={0,placements_data},palette={16,palette_data};
 static struct {long actual_count;} headers,*object_header_data=&headers;
 static struct network_game game;
-static int used,connection=2,coop=1,setting=1,percent=100,wall=0,gap=0,slope=0,crowded=0,allocation_fail=0,mesh_clear=0;
+static int used,connection=2,coop=1,setting=1,percent=100,step=1,wall=0,gap=0,slope=0,crowded=0,allocation_fail=0,mesh_clear=0;
 static real world_bound=20.f;
 static int config_boolean(char const *name){(void)name;return setting;}
-static long config_integer(char const *name){(void)name;return percent;}
+static long config_integer(char const *name){return !strcmp(name,"network.coop_player_step")?step:percent;}
 static int game_connection(void){return connection;}
 static int network_coop_active(void){return coop;}
 static struct network_game *network_game_get_game(void){return &game;}
@@ -123,15 +123,26 @@ int main(int argc,char **argv)
  const char *case_name=argc>1?argv[1]:"";
  setup(_object_type_weapon);
  CASE("counts") {
-  for(int p=1;p<=128;p++)for(int pct=25;pct<=200;pct+=25){
+  for(int s=1;s<=8;s++)for(int p=1;p<=128;p++)for(int pct=25;pct<=200;pct+=25){
    long sum=0;for(int n=1;n<=2000;n++){
-    short extra=pickups_extra_count(n,p,pct);sum+=extra;
-    long expected=MIN(((long)n*pct*(p-1)+50)/100,(long)n*7);
-    CHECK(extra>=0&&extra<=7&&sum==expected,"players %d percent %d N %d: %ld/%ld",p,pct,n,sum,expected);
+    short extra=pickups_extra_count(n,p,pct,s);sum+=extra;
+    long expected=MIN(((long)n*pct*((p-1)/s)+50)/100,(long)n*7);
+    CHECK(extra>=0&&extra<=7&&sum==expected,"step %d players %d percent %d N %d: %ld/%ld",s,p,pct,n,sum,expected);
    }
   }
-  CHECK(pickups_extra_count(0,4,100)==0&&pickups_extra_count(1,1,100)==0,"invalid/single player");
-  CHECK(pickups_extra_count(32767,128,200)==7,"large ordinal cap");
+  CHECK(pickups_extra_count(0,4,100,1)==0&&pickups_extra_count(1,1,100,1)==0,"invalid/single player");
+  CHECK(pickups_extra_count(32767,128,200,8)==7,"large ordinal cap");
+  CHECK(coop_scaling_growth(12,50,1)==550&&coop_scaling_growth(12,50,2)==250,"twelve players");
+  CHECK(coop_scaling_growth(128,200,0)==700&&coop_scaling_growth(128,200,99)==700,"step clamping and cap");
+  for(int s=0;s<=9;s++){
+   setup(_object_type_weapon);step=s;coop_pickups_new_game();
+   CHECK(pickups_player_step==PIN(s,1,8),"config clamp %d",s);
+   for(int p=1;p<=12;p++){
+    memset(&game,0,sizeof(game));for(int i=0;i<p;i++)game.players[i]=1;
+    objects[0].item.flags=0;coop_pickups_register(0,placements_data,&palette);
+    CHECK(((objects[0].item.flags&PICKUPS_COUNT_MASK)>>PICKUPS_COUNT_SHIFT)==pickups_extra_count(1,p,100,PIN(s,1,8)),"registration did not use step");
+   }
+  }
  } else CASE("eligibility") {
   CHECK(pickups_definition_allowed(0),"weapon excluded");definitions[0].object.type=_object_type_equipment;
   for(int p=0;p<=6;p++){definitions[0].equipment.powerup_type=p;

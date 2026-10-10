@@ -983,11 +983,13 @@ COOP_SETUP_SCREENS = [
         ]),
         ("coop_extra_pickups", "EXTRA PICKUPS:", ["OFF", "ON"], [
             "Pickups are as the campaign has them.",
-            "Pickup amounts such as weapons and overshields grow\\nwith the players: by the value of 'Per Player'\\nfor each player past the first.",
+            "Pickups grow with the players: by the value of\\n'Per Player' for each player past the first.",
         ]),
         ("coop_enemies_per_player", "PER PLAYER:", [f"{value}%" for value in COOP_ENEMIES_PERCENTAGES],
          ["For each player past the first, enemy squads/pickups\\nget this much more of themselves (100%: as many again)."] *
          len(COOP_ENEMIES_PERCENTAGES)),
+        ("coop_player_step", "PLAYER STEP:", [str(value) for value in range(1, 9)],
+         ["Only increment enemy squads/pickups\\nfor every X player."] * 8),
         ("coop_enemies_multiplier", "MULTIPLIER:", [f"{value}X" for value in COOP_ENEMIES_MULTIPLIERS],
          ["Each enemy squad is this many times as large."] * len(COOP_ENEMIES_MULTIPLIERS)),
         ("coop_player_collisions", "PLAYER COLLISIONS:", ["ON", "OFF"], [

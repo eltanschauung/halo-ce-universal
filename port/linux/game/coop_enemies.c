@@ -6,7 +6,7 @@ Network co-op's extra enemies: Server Setup's EXTRA ENEMIES
 percentage): for each player past the first, each squad of the players'
 enemies that a level places (encounters.c's encounter_create) gets that
 much of its count more; at 100%, two players meet twice the squad, four
-players four times it, but no squad grows past COOP_ENEMIES_MAXIMUM_GROWTH
+players four times it, but no squad grows past COOP_SCALING_MAXIMUM_GROWTH
 times its size (at 100%, 64 players made squads 64 times as large: more
 than the ground round them, the clients' objects or the host's ticks could
 take). STATIC MULTIPLIER (network.coop_enemies_multiplier):
@@ -48,6 +48,7 @@ Only the host runs the AI, so all of this is the host's.
 
 #include "coop_enemies.h"
 #include "network_coop.h"
+#include "coop_scaling.h"
 
 #include <math.h>
 #include <string.h>
@@ -69,8 +70,6 @@ enum
 	COOP_ENEMIES_MAXIMUM_PERCENT = 200,
 	COOP_ENEMIES_MINIMUM_MULTIPLIER = 2,
 	COOP_ENEMIES_MAXIMUM_MULTIPLIER = 32,
-	/* the largest PER PLAYER makes a squad, in times its size */
-	COOP_ENEMIES_MAXIMUM_GROWTH = 8,
 	/* the rings tried around a starting location, the first holding
 	SPREAD_PLACES_PER_RING places and each further one that many more */
 	SPREAD_RINGS = 5,
@@ -147,6 +146,7 @@ static struct
 	of PER PLAYER (a percentage) and of STATIC MULTIPLIER */
 	short mode;
 	short percent;
+	short player_step;
 	short multiplier;
 	struct coop_riding_vehicle vehicles[MAXIMUM_RIDING_VEHICLES];
 	short vehicle_count;
@@ -422,6 +422,7 @@ void coop_enemies_new_game(
 	end) */
 	coop_enemies.percent = (short)PIN(config_integer("network.coop_enemies"), COOP_ENEMIES_MINIMUM_PERCENT,
 		COOP_ENEMIES_MAXIMUM_PERCENT);
+	coop_enemies.player_step = (short)PIN(config_integer("network.coop_player_step"), 1, 8);
 	coop_enemies.multiplier = (short)PIN(config_integer("network.coop_enemies_multiplier"),
 		COOP_ENEMIES_MINIMUM_MULTIPLIER, COOP_ENEMIES_MAXIMUM_MULTIPLIER);
 	coop_enemies.mode = !strcmp(mode, "per_player") ? _coop_enemies_per_player :
@@ -455,8 +456,7 @@ short coop_enemies_extra_count(
 		players = coop_enemies_player_count();
 		if (players <= 1)
 			return 0;
-		extra = ((long)count * coop_enemies.percent * (players - 1) + 50) / 100;
-		extra = MIN(extra, (long)count * (COOP_ENEMIES_MAXIMUM_GROWTH - 1));
+		extra = ((long)count * coop_scaling_growth(players, coop_enemies.percent, coop_enemies.player_step) + 50) / 100;
 	}
 	room = MAXIMUM_ACTORS - COOP_ENEMIES_LEVEL_ACTORS - actor_data->actual_count;
 	return (short)PIN(extra, 0, MAX(room, 0));

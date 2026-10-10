@@ -4802,6 +4802,8 @@ static struct gametype_option const gametype_options[] =
 		{ "false", "true" } },
 	{ "coop_enemies_per_player_spinner", _option_setting, 0, 0, 5, { 0 }, "network.coop_enemies",
 		{ "25", "50", "100", "150", "200" } },
+	{ "coop_player_step_spinner", _option_setting, 0, 0, 8, { 0 }, "network.coop_player_step",
+		{ "1", "2", "3", "4", "5", "6", "7", "8" } },
 	{ "coop_enemies_multiplier_spinner", _option_setting, 0, 0, 5, { 0 }, "network.coop_enemies_multiplier",
 		{ "2", "4", "8", "16", "32" } },
 	{ "coop_player_collisions_spinner", _option_setting, 0, 0, 2, { 0 }, "network.coop_player_collisions",
@@ -5335,10 +5337,26 @@ static void gametype_option_help(struct widget_instance *list)
 		short mode = named(list, "coop_extra_enemies_spinner", 0)->parameters.list.selected_index;
 
 		struct widget_instance *pickups = named(list, "coop_extra_pickups_spinner", 0);
+		boolean per_player = mode == _cooperative_enemies_per_player ||
+			(pickups && pickups->parameters.list.selected_index == 1);
 
-		visible_set(named(list, "op_coop_enemies_per_player", 0), mode == _cooperative_enemies_per_player ||
-			(pickups && pickups->parameters.list.selected_index == 1));
+		visible_set(named(list, "op_coop_enemies_per_player", 0), per_player);
+		visible_set(named(list, "op_coop_player_step", 0), per_player);
 		visible_set(named(list, "op_coop_enemies_multiplier", 0), mode == _cooperative_enemies_multiplier);
+
+		/* Hidden amounts must not reserve a blank row. Offsets are relative
+		to the parent: moving only the row carries its labels and spinners
+		with it when widget_instance_render_recursive draws and notes targets. */
+		{
+			short y = 73;
+
+			for (row = list->child; row; row = row->next)
+				if (row->visible && !strncmp(row->name, "op_coop_", 8))
+				{
+					row->vertical_offset = y;
+					y += 30;
+				}
+		}
 	}
 	/* (the server browser's filters, hidden: their helps are fewer than
 	their values) */

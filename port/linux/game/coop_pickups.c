@@ -31,6 +31,7 @@ No safe position means no copy; the level's originals are never moved.
 #include "scenario/scenario.h"
 #include "scenario/scenario_definitions.h"
 #include "coop_pickups.h"
+#include "coop_scaling.h"
 #include "network_coop.h"
 
 #include <math.h>
@@ -51,7 +52,6 @@ enum
 	PICKUPS_COPY_FLAG = 1 << 10,
 	PICKUPS_ID_SHIFT = 11,
 	PICKUPS_ID_MASK = 0x7fff << PICKUPS_ID_SHIFT,
-	PICKUPS_MAXIMUM_GROWTH = 8,
 	PICKUPS_SOURCES_PER_TICK = 8,
 	PICKUPS_RINGS = 5,
 	PICKUPS_PLACES_PER_RING = 12,
@@ -63,6 +63,7 @@ enum
 
 static boolean pickups_enabled;
 static short pickups_percent;
+static short pickups_player_step;
 
 static boolean pickups_host(void)
 {
@@ -70,15 +71,14 @@ static boolean pickups_host(void)
 }
 
 /* Incremental rounding gives a group of N placements exactly
-round(N * percent * (players-1) / 100) extras, up to 7*N. */
-static short pickups_extra_count(long ordinal, short players, short percent)
+round(N * growth / 100) extras, up to 7*N. */
+static short pickups_extra_count(long ordinal, short players, short percent, short player_step)
 {
 	long growth;
 
 	if (ordinal < 1 || ordinal > SHORT_MAX || players <= 1 || percent <= 0)
 		return 0;
-	growth = MIN((long)MIN(percent, 200) * (MIN(players, HALO_PORT_MAXIMUM_NETWORK_PLAYERS) - 1),
-		(PICKUPS_MAXIMUM_GROWTH - 1) * 100);
+	growth = coop_scaling_growth(players, percent, player_step);
 	return (short)((ordinal * growth + 50) / 100 - ((ordinal - 1) * growth + 50) / 100);
 }
 
@@ -148,7 +148,7 @@ static short pickups_existing_copies(long definition_index, unsigned long identi
 	object_iterator_new(&iterator, _object_mask_weapon | _object_mask_equipment, 0);
 	while ((item = object_iterator_next(&iterator)) != NULL)
 		if (item->definition_index == definition_index && (item->item.flags & PICKUPS_COPY_FLAG) &&
-			(item->item.flags & PICKUPS_ID_MASK) == identity && ++count >= PICKUPS_MAXIMUM_GROWTH - 1)
+			(item->item.flags & PICKUPS_ID_MASK) == identity && ++count >= COOP_SCALING_MAXIMUM_GROWTH - 1)
 			break;
 	return count;
 }
@@ -283,6 +283,7 @@ void coop_pickups_new_game(void)
 {
 	pickups_enabled = config_boolean("network.coop_pickups");
 	pickups_percent = (short)PIN(config_integer("network.coop_enemies"), 25, 200);
+	pickups_player_step = (short)PIN(config_integer("network.coop_player_step"), 1, 8);
 }
 
 void coop_pickups_register(long object_index, struct scenario_object_datum const *source, struct tag_block *palette)
@@ -296,7 +297,8 @@ void coop_pickups_register(long object_index, struct scenario_object_datum const
 	item = item_try_and_get(object_index);
 	if (!item || !pickups_definition_allowed(item->definition_index))
 		return;
-	extra = pickups_extra_count(pickups_ordinal(item, source, palette, &identity), pickups_player_count(), pickups_percent);
+	extra = pickups_extra_count(pickups_ordinal(item, source, palette, &identity), pickups_player_count(),
+		pickups_percent, pickups_player_step);
 	item->item.flags = (item->item.flags & ~(PICKUPS_COUNT_MASK | PICKUPS_ID_MASK | PICKUPS_COPY_FLAG)) |
 		((unsigned long)extra << PICKUPS_COUNT_SHIFT) | ((unsigned long)identity << PICKUPS_ID_SHIFT);
 }
