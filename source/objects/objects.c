@@ -56,6 +56,7 @@ OBJECTS.C
 #include "coop_pickups.h" /* port: the host's extra campaign pickups */
 /* port: object_bounds_cache.c's */
 void object_bounds_cache_update(long object_index, real_point3d const *center, real radius);
+#include "object_mesh.h" /* port: port/linux/game/object_mesh.c */
 
 /* ---------- constants */
 
@@ -1070,6 +1071,8 @@ void objects_initialize_for_new_map(
 	widgets_initialize_for_new_map();
 	object_types_initialize_for_new_map();
 	lights_initialize_for_new_map();
+	/* port: the last map's meshes forgotten (port/linux/game/object_mesh.c) */
+	object_mesh_reset();
 	
 	data_make_valid(object_header_data);
 	object_name_list_clear();

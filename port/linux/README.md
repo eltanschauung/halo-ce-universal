@@ -372,6 +372,7 @@ illumination continue, and other players' weapons are unaffected.
 | `display.fov` | `0.0` | `HALO_FOV` | On-foot first-person horizontal FOV at 16:9, 20–150 degrees; `0` keeps the authored view. Video Setup > FOV and Viewmodels sets it. |
 | `display.viewmodel_fov` | `0.0` | `HALO_VIEWMODEL_FOV` | Independent weapon/hands horizontal FOV at 16:9, 20–150 degrees; `0` follows the world view. |
 | `display.viewmodel_visible` | `true` | `HALO_VIEWMODEL_VIS` | Show first-person weapons, hands and attached visuals. This does not change gameplay or other players' models. |
+| `display.first_person_legs` | `false` | `HALO_FIRST_PERSON_LEGS` | `true`: your own body is drawn from the waist down in first person, so you see your legs when you look down, moving as the body's animation moves them. Refer to "First-person legs". |
 | `display.high_res_hud` | `true` | `HALO_HIGH_RES_HUD` | `true`: the HUD (meters, counters, panels and their outlines, the motion sensor, reticles, waypoints, scopes) is drawn from the high-res assets in `port/assets/hud`, 8x the size of the maps' bitmaps. The bitmaps with English text keep the maps' own. `false`: the maps' own bitmaps. |
 | `display.high_res_text` | `true` | `HALO_HIGH_RES_TEXT` | `true`: the menus' and HUD's text is drawn with the fonts in `port/assets/fonts` (Overpass, in place of the maps' Interstate) at the resolution the game draws at, laid out as before, and the menus' titles are drawn from the high-res pictures in `port/assets/titles`. `false`: the maps' bitmap fonts and titles. |
 | `display.shadow_resolution` | `128` | `HALO_SHADOW_RESOLUTION` | The size of the maps that the shadows of the objects are drawn in, in pixels each way: `128`, `256`, `512` or `1024` (other values go down to one of these). The game draws the shadow of each object into a map of 128x128 pixels, blurs it and projects it onto the ground. On a large screen, the edges of these shadows show steps that move when the object moves. A larger map makes the edges smooth; the blur is made wider to match, so the shadows are as soft as on the Xbox. Each doubling adds two passes of the blur. `128`: as on the Xbox. |
@@ -513,6 +514,21 @@ the world (such as `rasterizer_wireframe`). Refer to `NETCODE.md`.
 
 The frame rate shows at the bottom right of the screen. It is the mean over
 half a second.
+
+## First-person legs
+
+LEGS (`display.first_person_legs`) draws your own body in first person
+from the waist down, so you see your legs when you look down, walking,
+running and crouching as everyone else sees them. It is the body others
+see, posed as they see it: the upper body is folded away, and the body is
+set back behind the eye as far as keeps the open waist below the view
+(the way Halo 2 keeps its first-person body's open top out of sight), more
+the further down you look. It is drawn with the world's camera, so it keeps
+its place and size at any field of view. Hit boxes, markers and everything
+the game does with the body are unchanged.
+
+Only this machine's view changes. Nothing the machines send each other
+changes, so players with different settings play together.
 
 ## System link
 
@@ -1055,6 +1071,7 @@ Other changes:
 | `render/render.c` | The 3D view of each window is antialiased before the HUD is drawn (`display.anti_aliasing`). |
 | `interface/hud.c` | In multiplayer, players' names are drawn above their heads (`display.player_names`, `display.player_name_scale`). |
 | `rasterizer/rasterizer_text.c`, `text/draw_string.c` | Text is drawn from an atlas of the fonts' glyphs, rasterized at the resolution the game draws at (`src/text_hires.c`), when the font has every character of the string. Text can be drawn scaled about a point (`rasterizer_text_set_scale`), as the players' names are. Each glyph's advance is centred on the font tag character's, so the layout is the same, and a glyph is cut at a text box only where the font tag's character visibly was. |
+| `render/render_objects.c`, `objects/objects.c` | In first person, your own body is drawn from the waist down with the pose `first_person_legs.c` makes (`display.first_person_legs`); the meshes `object_mesh.c` read are forgotten on a new map. |
 
 The x86 inline assembly of the game is replaced by C. Thus the compiler
 can optimize that code for each processor:

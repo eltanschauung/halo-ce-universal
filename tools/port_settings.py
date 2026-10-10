@@ -209,6 +209,8 @@ SCREENS["video_settings/fov_viewmodels"] = {
          "Weapon/hands horizontal FOV at 16:9, in degrees.\nSame follows the world view.", None),
         ("VIEWMODELS:", "display.viewmodel_visible", ON_OFF,
          "Draw first-person weapons, hands and attached\nvisuals. Gameplay and sound continue when off.", None),
+        ("LEGS:", "display.first_person_legs", ON_OFF,
+         "Your legs in first person, seen looking down,\nmoving as you run. Your body as others see it.", None),
     ],
 }
 
