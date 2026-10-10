@@ -2,7 +2,7 @@
 COOP_PICKUPS.C
 
 Server Setup's EXTRA PICKUPS (network.coop_pickups): weapons, grenades,
-overshields and camouflage placed by the campaign, grown by PER PLAYER
+health kits, overshields and camouflage placed by the campaign, grown by PER PLAYER
 (network.coop_enemies), to at most eight times their number. Fractions
 are distributed over placements of the same definition, rather than
 rounding every loose grenade up. Enemies' drops and inventory are not
@@ -104,7 +104,7 @@ static boolean pickups_definition_allowed(long definition_index)
 		short type = equipment_definition_get(definition_index)->equipment.powerup_type;
 
 		return type == _equipment_powerup_grenade || type == _equipment_powerup_overshield ||
-			type == _equipment_powerup_active_camouflage;
+			type == _equipment_powerup_active_camouflage || type == _equipment_powerup_health;
 	}
 	return FALSE;
 }

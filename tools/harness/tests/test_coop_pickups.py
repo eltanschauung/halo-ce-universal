@@ -8,7 +8,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import CHECK_FAILED, ROOT, build, mutated, read, run
 
-CASES = ['counts', 'eligibility', 'floor-and-walls', 'occupied-and-full', 'checkpoint-and-bsp', 'copies']
+CASES = ['counts', 'eligibility', 'health-kits', 'floor-and-walls', 'occupied-and-full', 'checkpoint-and-bsp', 'copies']
 
 
 def generated(fault=None):
@@ -31,6 +31,7 @@ def test_case(case):
     (('source->item.flags &= ~PICKUPS_COUNT_MASK;', '(void)source;'), 'checkpoint-and-bsp'),
     (('collision_test_sphere(center, radius + 0.02f, source_index)', 'FALSE'), 'floor-and-walls'),
     (('!TEST_FLAG(item->object.flags, _object_outside_of_map_bit)', 'TRUE'), 'checkpoint-and-bsp'),
+    ((' || type == _equipment_powerup_health', ''), 'health-kits'),
 ])
 def test_negative_control(fault, case):
     status, output = run(build('coop_pickups', generated(fault)), case)
