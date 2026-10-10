@@ -65,7 +65,9 @@ struct widget_instance {
  long definition_tag_index;struct widget_instance *parent;
  union {struct {short selected_index;word number_of_items;} list;} parameters;
 };
-struct halo_menu_widget {char const *setting;};
+struct halo_menu_widget {char const *setting; char const *file; long line; char const *name;};
+static void problem(char const *file, long line, char const *message, char const *name)
+{ (void)file; (void)line; (void)message; (void)name; abort(); }
 struct test_definition {struct {long index;} text_label_string_list;};
 '''
 

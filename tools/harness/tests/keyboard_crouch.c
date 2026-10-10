@@ -17,6 +17,8 @@ static long now;
 static boolean controls_enable_crouch;
 static unsigned long halo_keyboard_actions(short controller_index) { return held_actions[controller_index]; }
 static long system_milliseconds(void) { return now; }
+int halo_linux_touch_move(short controller_index, real *forward, real *strafe)
+{ (void)controller_index; (void)forward; (void)strafe; return 0; }
 #include "under_test.inc"
 
 static struct game_input_state keyboard(unsigned long held)
