@@ -79,6 +79,7 @@ int main(int argc, char **argv)
         votekick.active=TRUE; votekick.target_machine=1;
         CHECK(network_votekick_request(2),"kick failed");
         CHECK(!votekick.active && status_count==1 && votekick_gap,"vote not ended: departure would pass/ban");
+        CHECK(votekick_next_allowed==system_milliseconds()+VOTE_GAP_SECONDS*1000,"vote gap deadline lost");
         CHECK(ban_count==0 && vote_count==0 && notice_count==1,"extra vote/ban/notice");
         return 0;
     }
