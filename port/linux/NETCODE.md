@@ -252,6 +252,12 @@ as it changes), for the scoreboard, whose right click frees the mouse to
 pick a player; the host's own scoreboard adds Kick and Ban. Builds without
 votes drop both kinds as unknown, so the network version is unchanged.
 
+The host's local `votekick` request uses its direct Kick instead: no vote,
+eligibility wait, cooldown or temporary vote ban, even with votes disabled.
+The red notice "X was kicked by host" is broadcast. A running
+vote against that machine ends without passing; votes against others remain.
+Client requests still use the authenticated stream and the normal vote rules.
+
 Voice chat (`network_voice.c`, the sound in `port/linux/src/voice_audio.c`)
 travels as distributed messages too, but in the lobby as well as in a game:
 `network_voice_handles_message` takes them before the netcode's checks that

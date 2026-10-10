@@ -3783,7 +3783,7 @@ void network_distributed_kick(
 	char notice[MAXIMUM_NOTICE_LENGTH];
 
 	distributed_printable(kept_names, sizeof(kept_names), names);
-	snprintf(notice, sizeof(notice), "%s kicked by the host", kept_names);
+	snprintf(notice, sizeof(notice), "%s was kicked by host", kept_names);
 	/* (to every client in the game: in the lobby, the host's own) */
 	if (distributed_game_in_progress())
 		distributed_send_notice(notice);
