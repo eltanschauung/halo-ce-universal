@@ -242,6 +242,14 @@ float halo_screen_pixel_scale(void)
 	return screen_scale[1];
 }
 
+/* how many pixels the screen's targets draw to the Xbox's one, the larger
+of the two ways (the screen effects' convolutions: rasterizer_xbox_screen_effect.c) */
+float halo_screen_scale(void)
+{
+	halo_screen_width();
+	return screen_scale[0] > screen_scale[1] ? screen_scale[0] : screen_scale[1];
+}
+
 /* display.shadow_resolution: the size the shadow maps are drawn at.
 
 Each object's shadow is drawn from above into a 128x128 map, blurred into
@@ -411,6 +419,17 @@ static struct program_entry *program_buckets[PROGRAM_BUCKETS];
 
 /* ---------- render targets */
 
+/* what a render target's scale follows (render_target_get): an entry whose
+scale no longer fits is freed (render_targets_evict) */
+enum render_target_kind
+{
+	_render_target_plain,
+	/* the screen's targets and the secondary target: screen_scale's */
+	_render_target_screen,
+	/* a shadow map: halo_shadow_map_scale's */
+	_render_target_shadow_map,
+};
+
 struct render_target_entry
 {
 	struct render_target_entry *next;
@@ -421,6 +440,7 @@ struct render_target_entry
 	/* the back buffer or its depth buffer, which the 3D view is drawn into:
 	multisampled with multisampling (render_target_multisample) */
 	BOOL screen_buffer;
+	enum render_target_kind kind;
 };
 
 /* every draw looks up its targets and whether its textures are render
@@ -446,6 +466,8 @@ struct framebuffer_entry
 
 static struct render_target_entry *render_targets;
 static struct framebuffer_entry *framebuffers;
+
+static void render_targets_evict(void);
 
 /* ---------- the device */
 
@@ -1192,8 +1214,9 @@ static struct render_target_entry *render_target_get(const D3DSurface *surface)
 	if (!surface || !surface->Data)
 		return NULL;
 	float scale[2] = { 1.0f, 1.0f };
+	enum render_target_kind kind = _render_target_plain;
 
-	/* (the entries are never freed) */
+	/* (an entry lives until its scale no longer fits: render_targets_evict) */
 	screen = halo_screen_width();
 	for (slot = 0; slot < RECENT_RENDER_TARGET_COUNT; slot++)
 	{
@@ -1216,11 +1239,13 @@ static struct render_target_entry *render_target_get(const D3DSurface *surface)
 	{
 		scale[0] = screen_scale[0];
 		scale[1] = screen_scale[1];
+		kind = _render_target_screen;
 	}
 	else if (!depth && surface_is_shadow_map(surface))
 	{
 		scale[0] = (float)halo_shadow_map_scale();
 		scale[1] = scale[0];
+		kind = _render_target_shadow_map;
 	}
 	for (entry = *render_target_bucket(surface->Data); entry; entry = entry->next_in_bucket)
 	{
@@ -1238,6 +1263,7 @@ static struct render_target_entry *render_target_get(const D3DSurface *surface)
 	entry->target.depth = depth;
 	entry->target.scale[0] = scale[0];
 	entry->target.scale[1] = scale[1];
+	entry->kind = kind;
 	entry->target.gl_width = (unsigned long)(width * scale[0] + 0.5f);
 	entry->target.gl_height = (unsigned long)(height * scale[1] + 0.5f);
 	glGenTextures(1, &entry->target.texture);
@@ -1833,25 +1859,11 @@ HRESULT WINAPI Direct3D_CreateDevice(UINT adapter, D3DDEVTYPE device_type, void 
 
 /* ---------- the menus' pointer */
 
-#ifdef HALO_ANDROID
-int halo_ui_pointer_update(int menus_active, struct halo_ui_pointer *pointer)
-{
-	(void)pointer;
-	platform_menus_set_active(menus_active != 0);
-	return 0;
-}
-
-int halo_scoreboard_pointer_update(int offered, struct halo_ui_pointer *pointer)
-{
-	(void)offered;
-	(void)pointer;
-	return -1;
-}
-#else
 /* a point in the window, as SDL reports it, in the menus' coordinates: the
 inverse of the letterboxed display blit at presentation, the screen's
 width and the menus' centering (halo_screen_ui_offset); or, not centered,
-the screen's (the game's drawing: the scoreboard's) */
+the screen's (the game's drawing: the scoreboard's); x and y are -1 if there
+is no back buffer or window yet */
 static void ui_point_from_window_on(float window_x, float window_y, int centered, short *x, short *y)
 {
 	struct render_target_entry *back_buffer = render_target_get(&device.back_buffer);
@@ -1885,6 +1897,14 @@ static void ui_point_from_window(float window_x, float window_y, short *x, short
 	ui_point_from_window_on(window_x, window_y, TRUE, x, y);
 }
 
+#ifdef HALO_ANDROID
+int halo_scoreboard_pointer_update(int offered, struct halo_ui_pointer *pointer)
+{
+	(void)offered;
+	(void)pointer;
+	return -1;
+}
+#else
 int halo_scoreboard_pointer_update(int offered, struct halo_ui_pointer *pointer)
 {
 	struct platform_ui_pointer state;
@@ -1898,6 +1918,7 @@ int halo_scoreboard_pointer_update(int offered, struct halo_ui_pointer *pointer)
 	pointer->left_clicks = (unsigned char)(state.left_clicks < 255 ? state.left_clicks : 255);
 	return 1;
 }
+#endif
 
 int halo_ui_pointer_update(int menus_active, struct halo_ui_pointer *pointer)
 {
@@ -1914,9 +1935,11 @@ int halo_ui_pointer_update(int menus_active, struct halo_ui_pointer *pointer)
 	pointer->left_clicks = (unsigned char)(state.left_clicks < 255 ? state.left_clicks : 255);
 	pointer->right_clicks = (unsigned char)(state.right_clicks < 255 ? state.right_clicks : 255);
 	pointer->wheel_steps = (signed char)(state.wheel_steps < -8 ? -8 : state.wheel_steps > 8 ? 8 : state.wheel_steps);
+	pointer->touch = state.touch != FALSE;
+	pointer->downs = (unsigned char)(state.downs < 255 ? state.downs : 255);
+	ui_point_from_window(state.down_x, state.down_y, &pointer->down_x, &pointer->down_y);
 	return 1;
 }
-#endif
 
 /* takes up the display's shape and resolution, or the window's, if they
 have changed; between frames, since the game's layout and the targets must
@@ -1930,7 +1953,7 @@ long halo_screen_commit(void)
 	supersampling changes the scale below) */
 	anti_aliasing_read();
 	/* display.shadow_resolution, if it has changed: the maps' entries at
-	the old scale stay (render_target_get), but are no longer found */
+	the old scale are freed (render_targets_evict), new ones made at the new */
 	if (shadow_scale && shadow_scale_read_at != config_changes())
 	{
 		long shadow = shadow_scale_choose();
@@ -1940,7 +1963,7 @@ long halo_screen_commit(void)
 		{
 			platform_log("shadow maps: %ldx%ld", SHADOW_MAP_SIZE * shadow, SHADOW_MAP_SIZE * shadow);
 			shadow_scale = shadow;
-			memset(recent_render_targets, 0, sizeof(recent_render_targets));
+			render_targets_evict();
 		}
 	}
 	if (!screen_width)
@@ -1961,6 +1984,8 @@ long halo_screen_commit(void)
 			d3d8_surface_resize(&device.depth_buffer, D3DFMT_LIN_D24S8, (unsigned long)width, SCREEN_HEIGHT);
 		}
 #endif
+		/* (the entries of the old size and scale, which nothing finds now) */
+		render_targets_evict();
 	}
 	return screen_width;
 }
@@ -2933,6 +2958,107 @@ struct mip_composite
 };
 
 static struct mip_composite *mip_composites;
+
+/* an entry render_target_get no longer finds: the screen's targets at
+another scale or screen width than now, the shadow maps at another
+display.shadow_resolution */
+static BOOL render_target_stale(const struct render_target_entry *entry)
+{
+	switch (entry->kind)
+	{
+	case _render_target_screen:
+		return entry->target.scale[0] != screen_scale[0] || entry->target.scale[1] != screen_scale[1] ||
+			(entry->target.height == SCREEN_HEIGHT && entry->target.width != (unsigned long)halo_screen_width());
+	case _render_target_shadow_map:
+		return entry->target.scale[0] != (float)halo_shadow_map_scale();
+	default:
+		return FALSE;
+	}
+}
+
+/* frees the framebuffers made of a texture, or with renderbuffers, of a
+multisampled renderbuffer, which is going */
+static void framebuffers_forget(GLuint attachment, BOOL renderbuffers)
+{
+	struct framebuffer_entry *entry, **link = &framebuffers;
+
+	while ((entry = *link) != NULL)
+	{
+		if (entry->renderbuffers == renderbuffers && (entry->color == attachment || entry->depth == attachment))
+		{
+			*link = entry->next;
+			glDeleteFramebuffers(1, &entry->framebuffer);
+			free(entry);
+		}
+		else
+		{
+			link = &entry->next;
+		}
+	}
+}
+
+/* frees an entry taken out of render_targets: its GL objects, the
+framebuffers made of them, and what remembered them */
+static void render_target_delete(struct render_target_entry *entry)
+{
+	struct render_target_entry **link;
+	struct mip_composite *composite;
+
+	for (link = render_target_bucket(entry->target.data); *link != entry; link = &(*link)->next_in_bucket)
+		;
+	*link = entry->next_in_bucket;
+	framebuffers_forget(entry->target.texture, FALSE);
+	if (entry->target.multisample)
+	{
+		framebuffers_forget(entry->target.multisample, TRUE);
+		glDeleteRenderbuffers(1, &entry->target.multisample);
+	}
+	/* (a composite that copied from the texture copies again, rather than
+	take a new texture with the same name for it) */
+	for (composite = mip_composites; composite; composite = composite->next)
+	{
+		unsigned long level;
+
+		for (level = 0; level < composite->rendered_levels; level++)
+		{
+			if (composite->level_sources[level] == entry->target.texture)
+			{
+				composite->rendered_levels = 0;
+				break;
+			}
+		}
+	}
+	glDeleteTextures(1, &entry->target.texture);
+	free(entry);
+}
+
+/* (between frames, when the screen's or the shadow maps' scale has
+changed: halo_screen_commit) frees the entries render_target_get no longer
+finds, which a frame at the old scale left */
+static void render_targets_evict(void)
+{
+	struct render_target_entry *entry, **link = &render_targets;
+	BOOL any = FALSE;
+
+	while ((entry = *link) != NULL)
+	{
+		if (render_target_stale(entry))
+		{
+			*link = entry->next;
+			render_target_delete(entry);
+			any = TRUE;
+		}
+		else
+		{
+			link = &entry->next;
+		}
+	}
+	if (any)
+	{
+		memset(recent_render_targets, 0, sizeof(recent_render_targets));
+		xgpu_gl_state_invalidate();
+	}
+}
 
 #ifdef HALO_ANDROID
 static GLuint framebuffer_get(GLuint color, GLuint depth);
@@ -4543,9 +4669,14 @@ static void immediate_emit(void)
 
 	if (device.immediate_count == device.immediate_capacity)
 	{
-		device.immediate_capacity = device.immediate_capacity ? device.immediate_capacity * 2 : 256;
-		device.immediate_vertices = realloc(device.immediate_vertices,
-			device.immediate_capacity * floats * sizeof(float));
+		unsigned long capacity = device.immediate_capacity ? device.immediate_capacity * 2 : 256;
+		float *vertices = realloc(device.immediate_vertices, capacity * floats * sizeof(float));
+
+		/* (out of memory: the vertex is dropped) */
+		if (!vertices)
+			return;
+		device.immediate_vertices = vertices;
+		device.immediate_capacity = capacity;
 	}
 	memcpy(device.immediate_vertices + device.immediate_count * floats, device.attributes, floats * sizeof(float));
 	device.immediate_count++;
