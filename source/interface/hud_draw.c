@@ -95,7 +95,6 @@ symbols in this file:
 #include "game/players.h"
 #include "interface/hud_definitions.h"
 #include "interface/hud_draw.h"
-#include "render_fov.h"
 #include "interface/interface.h"
 #include "interface/unit_hud_interface_definition.h"
 #include "items/weapon_definitions.h"
@@ -107,6 +106,7 @@ symbols in this file:
 #include "units/units.h"
 #include "cache_file_formats.h" /* port: port/linux/game/cache_file_formats.c */
 #include "custom_edition_cache.h"
+#include "view_fov.h" /* port: port/linux/game/view_fov.c */
 
 /* ---------- constants */
 
@@ -397,7 +397,7 @@ static void hud_draw_bitmap_internal(
 	real_vector2d const *xy_scale,
 	real theta,
 	pixel32 color,
-	real reticle_scale);
+	real reticle_scale);	/* port: (display.fov, view_fov.c) */
 static void hud_draw_bitmap_with_meter(
 	void *meter_parameters,
 	struct bitmap_data const *bitmap,
@@ -1592,8 +1592,9 @@ static void hud_draw_bitmap_internal(
 		real center_y = (render.camera.window_bounds.y1 + render.camera.window_bounds.y0) / 2 -
 			render.camera.viewport_bounds.y0;
 
-		/* Transform the complete authored reticle about its aiming anchor:
-		 * offsets and separate sprites must shrink along with their artwork. */
+		/* port: the reticle scaled about the view's centre, where it aims,
+		with display.fov (view_fov.c): its offsets and separate pieces
+		shrink with its picture */
 		for (vertex_index = 0; vertex_index < 4; vertex_index++)
 		{
 			vertices[vertex_index].position.x = center_x +
@@ -1687,6 +1688,7 @@ static void hud_draw_bitmap_with_meter(
 		&xy_scale,
 		theta,
 		color,
+		/* port: a reticle at the centre keeps to its aim (view_fov.c) */
 		is_crosshair_bitmap && absolute_placement->corner == _hud_anchor_center ?
 			render_fov_reticle_scale(render.local_player_index) : 1.0f);
 
@@ -2008,11 +2010,43 @@ void hud_draw_numbers(
 			0,
 			0);
 		boolean kilometers = value > 999;
-		/* port: the Xbox's digits are sprites of one bitmap. A Custom Edition
-		map's can be separate bitmaps with no sprites, one per digit; those
-		draw the same, and the one-bitmap asserts below don't apply. */
-		boolean digits_on_one_bitmap = bitmap_group->sequences.count <= 0 ||
-			TAG_BLOCK_GET_ELEMENT(&bitmap_group->sequences, 0, struct bitmap_group_sequence)->sprites.count > 0;
+		/* port: the Xbox's digits are sprites of one bitmap, and the asserts
+		below check that sheet. A Custom Edition map's digit can be its own
+		bitmap, with no sprites or with a sprite that names that bitmap.
+		Those draw from the bitmap the digit names. */
+		boolean digits_on_one_bitmap = FALSE;
+		long sprite_index;
+
+		if (source_bitmap && bitmap_group->sequences.count > 0)
+		{
+			struct bitmap_group_sequence const *sequence = TAG_BLOCK_GET_ELEMENT(
+				&bitmap_group->sequences, 0, struct bitmap_group_sequence);
+
+			if (sequence->sprites.count > 0)
+			{
+				digits_on_one_bitmap = TRUE;
+				for (sprite_index = 0; sprite_index < sequence->sprites.count; sprite_index++)
+				{
+					struct bitmap_group_sprite const *sprite = TAG_BLOCK_GET_ELEMENT(
+						&sequence->sprites, sprite_index, struct bitmap_group_sprite);
+					struct bitmap_data const *sprite_bitmap = NULL;
+
+					if (sprite->bitmap_index >= 0 &&
+						sprite->bitmap_index < bitmap_group->bitmaps.count)
+					{
+						sprite_bitmap = TAG_BLOCK_GET_ELEMENT(
+							&bitmap_group->bitmaps,
+							sprite->bitmap_index,
+							struct bitmap_data);
+					}
+					if (sprite_bitmap != source_bitmap)
+					{
+						digits_on_one_bitmap = FALSE;
+						break;
+					}
+				}
+			}
+		}
 
 		if (_texture_cache_bitmap_get_hardware_format(source_bitmap, FALSE, TRUE))
 		{
@@ -2116,19 +2150,22 @@ void hud_draw_numbers(
 						kilometers ? _hud_number_kilometers_index : _hud_number_meters_index,
 						&number_bitmap,
 						&clip);
-					match_assert(
-						"c:\\halo\\SOURCE\\interface\\hud_draw.c",
-						515,
-						!digits_on_one_bitmap || source_bitmap==number_bitmap);
-					hud_draw_bitmap_direct(
-						number_bitmap,
-						absolute_placement->corner,
-						&point,
-						clip,
-						digit_scale,
-						0.0f,
-						color,
-						bitmap_group->type == _bitmap_group_type_interface_bitmaps);
+					if (number_bitmap)
+					{
+						match_assert(
+							"c:\\halo\\SOURCE\\interface\\hud_draw.c",
+							515,
+							!digits_on_one_bitmap || source_bitmap==number_bitmap);
+						hud_draw_bitmap_direct(
+							number_bitmap,
+							absolute_placement->corner,
+							&point,
+							clip,
+							digit_scale,
+							0.0f,
+							color,
+							bitmap_group->type == _bitmap_group_type_interface_bitmaps);
+					}
 					cursor.x = (short)(cursor.x - hud_number->screen_width*scale);
 				}
 
@@ -2157,19 +2194,22 @@ void hud_draw_numbers(
 							decimal_value % 10,
 							&number_bitmap,
 							&clip);
-						match_assert(
-							"c:\\halo\\SOURCE\\interface\\hud_draw.c",
-							539,
-							!digits_on_one_bitmap || source_bitmap==number_bitmap);
-						hud_draw_bitmap_direct(
-							number_bitmap,
-							absolute_placement->corner,
-							&point,
-							clip,
-							digit_scale,
-							0.0f,
-							color,
-							bitmap_group->type == _bitmap_group_type_interface_bitmaps);
+						if (number_bitmap)
+						{
+							match_assert(
+								"c:\\halo\\SOURCE\\interface\\hud_draw.c",
+								539,
+								!digits_on_one_bitmap || source_bitmap==number_bitmap);
+							hud_draw_bitmap_direct(
+								number_bitmap,
+								absolute_placement->corner,
+								&point,
+								clip,
+								digit_scale,
+								0.0f,
+								color,
+								bitmap_group->type == _bitmap_group_type_interface_bitmaps);
+						}
 						cursor.x = (short)(cursor.x - hud_number->screen_width*scale);
 						decimal_value /= 10;
 					}
@@ -2192,19 +2232,22 @@ void hud_draw_numbers(
 							_hud_number_decimal_index,
 							&number_bitmap,
 							&clip);
-						match_assert(
-							"c:\\halo\\SOURCE\\interface\\hud_draw.c",
-							556,
-							!digits_on_one_bitmap || source_bitmap==number_bitmap);
-						hud_draw_bitmap_direct(
-							number_bitmap,
-							absolute_placement->corner,
-							&point,
-							clip,
-							digit_scale,
-							0.0f,
-							color,
-							bitmap_group->type == _bitmap_group_type_interface_bitmaps);
+						if (number_bitmap)
+						{
+							match_assert(
+								"c:\\halo\\SOURCE\\interface\\hud_draw.c",
+								556,
+								!digits_on_one_bitmap || source_bitmap==number_bitmap);
+							hud_draw_bitmap_direct(
+								number_bitmap,
+								absolute_placement->corner,
+								&point,
+								clip,
+								digit_scale,
+								0.0f,
+								color,
+								bitmap_group->type == _bitmap_group_type_interface_bitmaps);
+						}
 						cursor.x = (short)(cursor.x - hud_number->screen_width*scale);
 					}
 				}
@@ -2229,19 +2272,22 @@ void hud_draw_numbers(
 						digit,
 						&number_bitmap,
 						&clip);
-					match_assert(
-						"c:\\halo\\SOURCE\\interface\\hud_draw.c",
-						575,
-						!digits_on_one_bitmap || source_bitmap==number_bitmap);
-					hud_draw_bitmap_direct(
-						number_bitmap,
-						absolute_placement->corner,
-						&point,
-						clip,
-						digit_scale,
-						0.0f,
-						color,
-						bitmap_group->type == _bitmap_group_type_interface_bitmaps);
+					if (number_bitmap)
+					{
+						match_assert(
+							"c:\\halo\\SOURCE\\interface\\hud_draw.c",
+							575,
+							!digits_on_one_bitmap || source_bitmap==number_bitmap);
+						hud_draw_bitmap_direct(
+							number_bitmap,
+							absolute_placement->corner,
+							&point,
+							clip,
+							digit_scale,
+							0.0f,
+							color,
+							bitmap_group->type == _bitmap_group_type_interface_bitmaps);
+					}
 					cursor.x = (short)(cursor.x - hud_number->screen_width*scale);
 					value /= 10;
 				}
@@ -2262,19 +2308,22 @@ void hud_draw_numbers(
 						_hud_number_negative_sign_index,
 						&number_bitmap,
 						&clip);
-					match_assert(
-						"c:\\halo\\SOURCE\\interface\\hud_draw.c",
-						595,
-						!digits_on_one_bitmap || source_bitmap==number_bitmap);
-					hud_draw_bitmap_direct(
-						number_bitmap,
-						absolute_placement->corner,
-						&point,
-						clip,
-						digit_scale,
-						0.0f,
-						color,
-						bitmap_group->type == _bitmap_group_type_interface_bitmaps);
+					if (number_bitmap)
+					{
+						match_assert(
+							"c:\\halo\\SOURCE\\interface\\hud_draw.c",
+							595,
+							!digits_on_one_bitmap || source_bitmap==number_bitmap);
+						hud_draw_bitmap_direct(
+							number_bitmap,
+							absolute_placement->corner,
+							&point,
+							clip,
+							digit_scale,
+							0.0f,
+							color,
+							bitmap_group->type == _bitmap_group_type_interface_bitmaps);
+					}
 				}
 			}
 		}

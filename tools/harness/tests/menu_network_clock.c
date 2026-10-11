@@ -1,6 +1,7 @@
 /* Real game_time_update, client-role predicate and round reset, with network
    clocks/queues as recorders. No assets, sockets, graphics or saved profile. */
 #include "harness.h"
+#include "../../../port/linux/include/profile_sections.h"
 #include "config.inc"
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define csmemset memset

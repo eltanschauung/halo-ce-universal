@@ -56,7 +56,8 @@ OBJECTS.C
 #include "coop_pickups.h" /* port: the host's extra campaign pickups */
 /* port: object_bounds_cache.c's */
 void object_bounds_cache_update(long object_index, real_point3d const *center, real radius);
-#include "object_mesh.h" /* port: port/linux/game/object_mesh.c */
+/* port: port/linux/game/first_person_legs.c's */
+void first_person_legs_reset(void);
 
 /* ---------- constants */
 
@@ -1071,8 +1072,9 @@ void objects_initialize_for_new_map(
 	widgets_initialize_for_new_map();
 	object_types_initialize_for_new_map();
 	lights_initialize_for_new_map();
-	/* port: the last map's meshes forgotten (port/linux/game/object_mesh.c) */
-	object_mesh_reset();
+	/* port: the last map's waist and mesh forgotten
+	(port/linux/game/first_person_legs.c) */
+	first_person_legs_reset();
 	
 	data_make_valid(object_header_data);
 	object_name_list_clear();
@@ -4669,6 +4671,23 @@ static void object_name_list_new(
 			TAG_BLOCK_GET_ELEMENT(&global_scenario_get()->object_names, name_index, struct scenario_object_name)->name);
 	}
 
+	return;
+}
+
+/* the name is free: deleting the vehicle that held it cleared the slot.
+A name something else still holds stays with that object. */
+void object_claim_scenario_name(
+	long object_index,
+	short name_index)
+{
+	if (object_index == NONE ||
+		!VALID_INDEX(name_index, MIN(global_scenario_get()->object_names.count, MAXIMUM_OBJECT_NAMES_PER_SCENARIO)) ||
+		object_name_list[name_index] != NONE)
+	{
+		return;
+	}
+
+	object_name_list_new(object_index, name_index);
 	return;
 }
 
