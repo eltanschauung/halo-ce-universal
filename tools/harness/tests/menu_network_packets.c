@@ -17,6 +17,11 @@ static int network_spray_handles_message(const void *message,word size){(void)me
 static boolean network_social_handles_message(word const *message,word size){return FALSE;}
 static void network_social_handle_message(long machine,word const *message,word size){}
 static void network_spray_handle_message(long machine,const void *message,word size){(void)machine;(void)message;(void)size;}
+static int network_aim_assist_handles_message(const void *m,word n){return 0;}
+static void network_aim_assist_handle_message(long i,const void *m,word n){}
+static int network_suicide_handles_message(const void *m,word n){return 0;}
+static void network_suicide_handle_message(long i,const void *m,word n,boolean reliable){}
+static boolean distributed_handling_stream_message;
 /* Voice transport has its own lobby-safe dispatcher; gameplay still needs
    the admission guard below it. Decode coverage lives in the voice tests. */
 static boolean network_voice_handles_message(message_header const *message, word size)

@@ -31,7 +31,7 @@ long config_integer(char const *name);
 #define SOCIAL_SCORE_CHUNK 64
 /* Match the existing damage categories, without changing tag enums. */
 enum { SOCIAL_FALLING = 1, SOCIAL_GRENADE = 3, SOCIAL_VEHICLE = 9 };
-enum { SOCIAL_CHAT, SOCIAL_SUICIDE };
+enum { SOCIAL_CHAT };
 struct social_request { byte player, operation; char text[SOCIAL_TEXT]; };
 struct social_line { byte kind; char text[SOCIAL_LINE]; };
 struct social_score_entry { byte player, pad[3]; long score; unsigned long identity; };
@@ -138,23 +138,11 @@ static boolean social_allow_request(long index)
     social_rates[slot].tokens -= 1;
     return TRUE;
 }
-static boolean social_suicide(long index)
-{
-    struct player_datum *p = player_try_and_get(index);
-    struct unit_datum *u;
-    if (!social_present(p) || p->unit_index == NONE || !(u = unit_try_and_get(p->unit_index)) ||
-        u->unit.player_index != index || TEST_FLAG(u->object.damage_flags, _object_dead_bit)) return FALSE;
-    network_social_score(index);
-    social_players[social_slot(index)].suicide_unit = p->unit_index;
-    unit_kill(p->unit_index);
-    return TRUE;
-}
 static boolean social_request_accept(long index, struct social_request const *request)
 {
     struct player_datum *p = player_try_and_get(index);
     char text[SOCIAL_TEXT], name[64], line[SOCIAL_LINE];
     if (!social_present(p) || !social_allow_request(index)) return FALSE;
-    if (request->operation == SOCIAL_SUICIDE) return social_suicide(index);
     if (request->operation != SOCIAL_CHAT) return FALSE;
     social_clean_text(text, sizeof(text), request->text);
     if (!text[0]) return FALSE;
@@ -190,20 +178,10 @@ static boolean social_command_prefix(char const *text, char const *prefix)
 }
 boolean network_social_console_command(char const *expression, boolean *success)
 {
-    char const *s = expression, *tail;
-    size_t n;
-    boolean paren = FALSE;
-    while (*s == ' ' || *s == '\t') s++;
-    if (*s == '(') { paren = TRUE; s++; }
-    if (social_command_prefix(s, "say ")) { *success = network_social_chat_send(s + 4); return TRUE; }
-    n = social_command_prefix(s,"suicide") ? 7 : social_command_prefix(s,"kill") ? 4 : 0;
-    if (!n || (s[n] && s[n] != ' ' && s[n] != '\t' && s[n] != ')')) return FALSE;
-    tail = s + n;
-    while (*tail == ' ' || *tail == '\t') tail++;
-    if (paren && *tail == ')') tail++;
-    while (*tail == ' ' || *tail == '\t') tail++;
-    if (*tail) { console_warning("kill/suicide takes no arguments"); *success = FALSE; }
-    else *success = social_request_send(SOCIAL_SUICIDE, NULL);
+    char const *text = expression;
+    while (*text == ' ' || *text == '\t') text++;
+    if (!social_command_prefix(text, "say ")) return FALSE;
+    *success = network_social_chat_send(text + 4);
     return TRUE;
 }
 
@@ -227,14 +205,6 @@ static char const *social_unit_kind(char const *tag)
     if (strstr(tag,"marine")) return "Marine";
     return NULL;
 }
-static char const *social_damage_kind(char const *tag)
-{
-    if (strstr(tag,"plasma grenade")) return "Plasma Grenade";
-    if (strstr(tag,"frag grenade")) return "Frag Grenade";
-    if (strstr(tag,"wraith")) return "Wraith Tank";
-    if (strstr(tag,"rocket")) return "Rocket";
-    return NULL;
-}
 static long social_points(char const *tag, boolean headshot)
 {
     char const *kind = social_unit_kind(tag);
@@ -243,50 +213,20 @@ static long social_points(char const *tag, boolean headshot)
 void network_social_note_death(long unit_index, struct damage_data const *damage)
 {
     struct unit_datum *unit = unit_try_and_get(unit_index);
-    struct object_datum *owner;
     struct player_datum *dead, *killer;
-    struct damage_definition const *definition;
-    char const *tag, *cause, *owner_tag;
-    char name[64], killer_name[64], line[SOCIAL_LINE];
-    long slot = social_slot(unit_index), dead_index, killer_index;
+    long slot = social_slot(unit_index), killer_index;
     if (!social_host() || !network_coop_active() || !unit || slot < 0 || slot >= HALO_PORT_MAXIMUM_OBJECTS_PER_MAP ||
         social_dead_units[slot] == unit_index || TEST_FLAG(damage->flags, _damage_no_statistics_bit)) return;
     social_dead_units[slot] = unit_index;
-    dead_index = unit->unit.player_index;
+    dead = player_try_and_get(unit->unit.player_index);
+    if (dead && dead->unit_index == unit_index) return;
     killer_index = damage->owner_player_index;
-    dead = player_try_and_get(dead_index); killer = player_try_and_get(killer_index);
-    if (dead && dead->unit_index != unit_index) dead = NULL;
-    owner = object_try_and_get(damage->owner_object_index);
-    tag = tag_get_name(unit->definition_index);
-    if (!social_present(dead)) {
-        if (social_present(killer) && game_team_is_enemy(killer->team_index, unit->object.owner_team_index)) {
-            long score = network_social_score(killer_index), points = social_points(tag, TEST_FLAG(damage->flags, _damage_headshot_bit));
-            social_players[social_slot(killer_index)].score = score > LONG_MAX - points ? LONG_MAX : score + points;
-        }
-        return;
+    killer = player_try_and_get(killer_index);
+    if (social_present(killer) && game_team_is_enemy(killer->team_index, unit->object.owner_team_index)) {
+        long score = network_social_score(killer_index);
+        long points = social_points(tag_get_name(unit->definition_index), TEST_FLAG(damage->flags, _damage_headshot_bit));
+        social_players[social_slot(killer_index)].score = score > LONG_MAX - points ? LONG_MAX : score + points;
     }
-    social_player_name(dead, name, sizeof(name));
-    definition = &damage_effect_definition_get(damage->definition_index)->damage;
-    tag = tag_get_name(damage->definition_index);
-    cause = social_damage_kind(tag);
-    owner_tag = owner ? tag_get_name(owner->definition_index) : "";
-    if (social_players[social_slot(dead_index)].player == dead_index &&
-        social_players[social_slot(dead_index)].suicide_unit == unit_index) {
-        social_players[social_slot(dead_index)].suicide_unit = NONE;
-        snprintf(line,sizeof(line),"%s killed themselves",name);
-    } else if (social_present(killer) && killer_index != dead_index) {
-        social_player_name(killer,killer_name,sizeof(killer_name));
-        snprintf(line,sizeof(line),"%s was killed by %s%s%s%s",name,killer_name,cause ? " (" : "",cause ? cause : "",cause ? ") [team kill]" : " [team kill]");
-    } else if (killer_index == dead_index) snprintf(line,sizeof(line),"%s killed themselves%s%s%s",name,cause ? " (" : "",cause ? cause : "",cause ? ")" : "");
-    else if (TEST_FLAG(unit->object.flags,_object_outside_of_map_bit) || strstr(tag,"distance")) snprintf(line,sizeof(line),"%s fell out of the world",name);
-    else if (definition->category == SOCIAL_FALLING) snprintf(line,sizeof(line),"%s died of fall",name);
-    else {
-        char const *kind = social_unit_kind(owner_tag);
-        if (definition->category == SOCIAL_VEHICLE && kind) snprintf(line,sizeof(line),"%s was ran over by %s",name,kind);
-        else snprintf(line,sizeof(line),"%s was killed by %s",name,cause ? cause : kind ? kind : "an unknown cause");
-    }
-    line[sizeof(line)-1] = 0;
-    social_broadcast_line(line, TRUE);
 }
 real network_social_chain_damage_scale(struct damage_data const *damage, long index)
 {

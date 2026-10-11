@@ -382,6 +382,7 @@ symbols in this file:
 #include "networking/network_server_manager.h" /* port: a co-op game's level won */
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
 #include "network_voice.h" /* port: port/linux/game/network_voice.c */
+#include "network_aim_assist.h" /* port: port/linux/game/network_aim_assist.c */
 #include "halo_spray.h"
 #include "camera/director.h"
 #include "camera/observer.h"
@@ -3444,6 +3445,8 @@ void main_loop(
 			network_test_update(main_globals.main_menu_scenario_loaded, main_globals.seconds_elapsed);
 			/* port: voice chat, in the lobby and in game (port/linux/game/network_voice.c) */
 			network_voice_update();
+			/* port: apply and replicate the host's mouse aim-assist policy. */
+			network_aim_assist_update();
 			network_social_update();
 			network_spray_update();
 			connection = main_globals.connection;

@@ -124,6 +124,12 @@ enum
 	_distributed_message_social_line = 97,
 	_distributed_message_social_scores = 98,
 
+	/* The host's mouse aim-assist policy, reliably on ready and on change. */
+	_distributed_message_aim_assist_policy = 83,
+
+	/* Authenticated request to kill only the sender's current unit. */
+	_distributed_message_suicide_request = 84,
+
 	NUMBER_OF_DISTRIBUTED_MESSAGES
 };
 

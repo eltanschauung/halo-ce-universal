@@ -20,7 +20,7 @@ def generated(fault=None):
     return (('under_test.inc', code),)
 
 
-@pytest.mark.parametrize('case', ['chat', 'admission', 'suicide', 'score', 'causes', 'chain', 'snapshots', 'rate'])
+@pytest.mark.parametrize('case', ['chat', 'admission',  'score',  'chain', 'snapshots', 'rate'])
 def test_case(case):
     status, output = run(build('network_social', generated()), case)
     assert status == 0, output

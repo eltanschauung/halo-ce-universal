@@ -2775,6 +2775,7 @@ symbols in this file:
 /* ---------- headers */
 
 #include "network_social.h"
+#include "network_suicide.h" /* port: port/linux/game/network_suicide.c */
 #include "cseries/cseries.h"
 #include "cseries/errors.h"
 #include "cseries/profile.h"
@@ -15382,6 +15383,9 @@ static boolean hs_compile_and_evaluate_command(
 		if (console_option_execute(expression, &option_succeeded))
 			return option_succeeded;
 	}
+	/* port: self-kill requests go through the host's current-unit checks. */
+	if (network_suicide_console_command(expression, &success))
+		return success;
 	if (network_social_console_command(expression, &success))
 		return success;
 	/* port: the co-op host's bringto, which brings every player to the host
