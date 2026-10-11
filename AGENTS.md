@@ -223,3 +223,15 @@ as documentation of file formats, never copied.
 | [tools/harness/README.md](tools/harness/README.md) | Asset-free regression tests |
 | `port/third_party/*/README.md` | Each vendored library |
 | [AUTHORS.md](AUTHORS.md) | Art credits |
+
+## Local Windows fork workflow
+
+- `tools/build_local_windows.ps1` (local, ignored) imports Visual Studio's x86
+  SDK environment and builds a portable release with full LTO, PGO off and
+  build number 0. LLVM is in `.toolchain/llvm/LLVM/bin`.
+- Deploy completed fixes to `halo-windows-release/halo.exe` after validation.
+  Back up the executable first; preserve config, maps, sprays and real profiles.
+- Runtime probes use isolated saves, excluding `cache*.map` and `hdmu.map`
+  from templates. Stop only owned processes and remove only their generated caches.
+- Fork PR descriptions start with the problem and finish with how the change
+  fixes it, with validation before that final explanation.
