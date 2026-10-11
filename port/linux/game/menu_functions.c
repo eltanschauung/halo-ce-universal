@@ -4783,8 +4783,8 @@ static struct gametype_option const gametype_options[] =
 	{ "autobalance_spinner", _option_option_byte, OPTIONS_FIELD(auto_team_balance), 0, 2, { 0, 1 } },
 	/* (the host's voice chat, below them: port/linux/game/network_voice.c;
 	tools/port_settings.py's TEAMPLAY_ROWS) */
-	{ "voice_mode_spinner", _option_setting, 0, 0, 5, { 0 }, "network.voice_mode",
-		{ "off", "team_proximity", "team_enemy_proximity", "team_global", "team_global_enemy_proximity" } },
+	{ "voice_mode_spinner", _option_setting, 0, 0, 6, { 0 }, "network.voice_mode",
+		{ "off", "team_proximity", "team_enemy_proximity", "team_global", "team_global_enemy_proximity", "all_global" } },
 	{ "voice_lobby_spinner", _option_setting, 0, 0, 2, { 0 }, "network.voice_lobby", { "true", "false" } },
 	{ "voice_kbps_spinner", _option_setting, 0, 0, 7, { 0 }, "network.voice_kbps",
 		{ "8", "12", "16", "24", "32", "48", "64" } },

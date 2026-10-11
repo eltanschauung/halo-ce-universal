@@ -229,12 +229,13 @@ WIDE_SETTINGS = {"audio.output_device", "audio.input_device"}
 TEAMPLAY_EDIT = "main_menu/settings_select/multiplayer_setup/teamplay_options_edit"
 VOICE_QUALITIES = (8, 12, 16, 24, 32, 48, 64)
 TEAMPLAY_ROWS = [
-    ("voice_mode", "VOICE CHAT:", ["OFF", "TEAM NEAR", "ANYONE NEAR", "TEAM", "TEAM, ENEMIES NEAR"], [
+    ("voice_mode", "VOICE CHAT:", ["OFF", "TEAM NEAR", "ANYONE NEAR", "TEAM", "TEAM, ENEMIES NEAR", "ALL"], [
         "No voice chat during the game.",
         "Players hear their teammates who are near them.",
         "Players hear everyone who is near them.",
         "Players hear all their teammates, wherever they\\nare.",
         "Players hear all their teammates, and the enemies\\nwho are near them.",
+        "Players hear everyone, wherever they are, with\\nno proximity effects.",
     ]),
     ("voice_lobby", "LOBBY VOICE CHAT:", ["ON", "OFF"], [
         "Everyone hears everyone in the lobby, before and\\nafter the game.",

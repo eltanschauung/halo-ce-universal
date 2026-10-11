@@ -278,6 +278,11 @@ never sends a machine its own. A listener sets the gain and pan of a voice
 heard for being near by its own view of the speaker's unit. Mutes are each
 machine's own. Builds without voice chat never say they hear voices, so the
 host sends them none, and drop the kinds as unknown.
+Teamplay Options' All mode (`network.voice_mode = "all_global"`) relays
+everyone globally, regardless of team, distance or death, at full gain and
+centered pan. The host advertises the existing enabled Team mode to clients
+and selects the existing global route per frame, so older voice-capable
+clients can participate too. Local mutes and the lobby voice setting still apply.
 A speed hack of less than a tenth is let be: the host's bounds on how far
 and how fast a client's player moves and fires hold it to the host's time
 anyway.

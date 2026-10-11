@@ -376,8 +376,9 @@ static const struct config_setting config_settings[] =
 		_environment_value, _platform_all,
 		"Hosting: voice chat in a game: \"off\"; \"team_proximity\" (teammates\n"
 		"near); \"team_enemy_proximity\" (anyone near); \"team_global\" (all\n"
-		"teammates); or \"team_global_enemy_proximity\" (all teammates, and\n"
-		"enemies near). A game without teams has only enemies; co-op only\n"
+		"teammates); \"team_global_enemy_proximity\" (all teammates, and\n"
+		"enemies near); or \"all_global\" (everyone, without proximity effects).\n"
+		"A game without teams has only enemies; co-op only\n"
 		"teammates." },
 	{ "network.voice_kbps", _config_integer, "24", "HALO_NET_VOICE_KBPS", _environment_value, _platform_all,
 		"Hosting: the voices' quality, in the lobby and in a game, in kilobits a\n"
