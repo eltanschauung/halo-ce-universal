@@ -51,6 +51,7 @@ Players are named by their absolute index, which is the same on every
 machine (their datum identifiers need not be).
 */
 
+#include "network_social.h"
 #include "cseries.h"
 #include "cseries/errors.h"
 #include "cache/cache_files.h"
@@ -3314,6 +3315,7 @@ void network_distributed_new_game(
 	network_damage_new_game();
 	network_actors_new_game();
 	network_coop_new_game();
+	network_social_reset();
 	network_votekick_new_game();
 }
 
@@ -3931,6 +3933,11 @@ void network_distributed_handle_message(
 	if(network_spray_handles_message(message,size))
 	{
 		network_spray_handle_message(machine_index,message,size);
+		return;
+	}
+	if (network_social_handles_message(message, size))
+	{
+		network_social_handle_message(machine_index, message, size);
 		return;
 	}
 	if (network_voice_handles_message(message, size))

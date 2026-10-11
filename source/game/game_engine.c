@@ -536,6 +536,7 @@ symbols in this file:
 
 /* ---------- headers */
 
+#include "network_social.h"
 #include "cseries.h"
 #include "cseries_windows.h"
 #include "errors.h"
@@ -1709,7 +1710,7 @@ network_distributed.c). More players than a page are scrolled to with the
 mouse wheel and Page Up/Down (platform_scoreboard_scroll), a footer telling
 which are shown; opened, it shows the viewer's own player's page. Network
 co-op's campaign, with no game engine, lists its players as they joined,
-with only their names and pings. */
+with their names, co-op scores and pings. */
 enum
 {
 	/* the rows' widths (in the scoreboard's text, before it is scaled):
@@ -2268,7 +2269,9 @@ static void game_engine_rasterize_scoreboard(
 	column_name = string_list_index != NONE && !campaign ? unicode_string_list_get_string(string_list_index, 0x43) : L"";
 	score_name = string_list_index != NONE ? unicode_string_list_get_string(string_list_index, 0x44) : L"";
 	score_string[0] = 0;
-	if (!campaign)
+	if (campaign)
+		usprintf(score_string, L"Score");
+	else
 		game_engine->format_score_name(score_string);
 	/* port: bounded (the map's column names) */
 	usnprintf(row_string, NUMBEROF(row_string), L"\t%s\t%s\t%s\t%s", column_name, score_name, score_string,
@@ -2319,6 +2322,8 @@ static void game_engine_rasterize_scoreboard(
 		color.alpha = alpha;
 		score_string[0] = 0;
 		status_string = score_string;
+		if (campaign)
+			usprintf(score_string, L"%ld", network_social_score(entry->player_index));
 		if (!campaign)
 		{
 			game_engine->format_player_score(entry->player_index, score_string);

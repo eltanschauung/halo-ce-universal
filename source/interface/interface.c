@@ -69,6 +69,7 @@ symbols in this file:
 
 /* ---------- headers */
 
+#include "network_social.h"
 #include "cseries/cseries.h"
 #include "cseries/cseries_windows.h"
 #include "ai/ai_profile.h"
@@ -382,6 +383,7 @@ void interface_draw_fullscreen_overlays(
 	interface_splitscreen_render();
 	hud_render_timer();
 	terminal_draw();
+	chat_draw();
 	main_framerate_render();
 	render_debug_profile();
 

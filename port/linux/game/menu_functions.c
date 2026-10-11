@@ -2024,6 +2024,7 @@ static struct
 	{ "controls.pause", L"PAUSE MENU", 2 },
 	{ "controls.screenshot", L"SCREENSHOT", 2 },
 	{ "controls.spray", L"SPRAY IMAGE", 2 },
+	{ "controls.chat", L"CHAT", 2 },
 	{ "controls.push_to_talk", L"PUSH TO TALK", 2 },
 };
 
@@ -4800,6 +4801,8 @@ static struct gametype_option const gametype_options[] =
 	COOP_SETUP_SCREENS; coop_enemies.c) */
 	{ "coop_friendly_fire_spinner", _option_setting, 0, 0, 4, { 0 }, "network.coop_friendly_fire",
 		{ "on", "half_damage", "quarter_damage", "off" } },
+	{ "coop_chain_damage_spinner", _option_setting, 0, 0, 4, { 0 }, "network.coop_chain_reaction_damage",
+		{ "100", "75", "50", "25" } },
 	{ "coop_extra_enemies_spinner", _option_setting, 0, 0, 3, { 0 }, "network.coop_enemies_mode",
 		{ "none", "per_player", "multiplier" } },
 	{ "coop_extra_pickups_spinner", _option_setting, 0, 0, 2, { 0 }, "network.coop_pickups",

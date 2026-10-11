@@ -114,6 +114,7 @@ index and tag, since the map placed them at the same index everywhere.
 #include "coop_pickups.h"
 #include "coop_spectate.h"
 #include "network_coop.h"
+#include "network_social.h"
 #include "network_distributed.h"
 
 /* ---------- constants */
@@ -2587,6 +2588,7 @@ void network_coop_reverted(
 	}
 	/* (the dropships' riders kept are of the game state reverted from) */
 	coop_enemies_reset();
+	network_social_reverted();
 	error(_error_silent, "co-op: reverted %ld ticks, clock kept at %ld", ticks, now);
 	event_new(_coop_event_reverted);
 }

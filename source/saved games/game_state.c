@@ -123,6 +123,7 @@ symbols in this file:
 #include "lruv_cache.h"
 #include "memory_pool.h"
 #include "cluster_partitions.h"
+#include "effects/effects.h"
 /* port: object_bounds_cache.c's */
 void object_bounds_cache_invalidate(void);
 
@@ -186,6 +187,7 @@ static game_state_before_save_proc before_save_procs[] =
 
 static game_state_before_load_proc before_load_procs[] =
 {
+	effects_chain_reaction_reset,
 	halo_spray_reset,
 	game_sound_clear,
 	/* port: where the cluster lists' references are, which the game state

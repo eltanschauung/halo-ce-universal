@@ -294,6 +294,8 @@ static const struct config_setting config_settings[] =
 		"Save a PNG screenshot beside maps/ (press once per capture)." },
 	{ "controls.spray", _config_string, "\"T\"", "HALO_KEY_SPRAY", _environment_value, _platform_all,
 		"Spray sprays/spray.png onto a nearby wall; shared with compatible multiplayer peers." },
+	{ "controls.chat", _config_string, "\"Y\"", "HALO_KEY_CHAT", _environment_value, _platform_all,
+		"Open match chat; Enter sends, Escape cancels, Tab completes; / runs a console command." },
 	{ "controls.push_to_talk", _config_string, "\"V\"", "HALO_KEY_PUSH_TO_TALK", _environment_value, _platform_all,
 		"Voice chat: talk while it is held (audio.voice_chat \"push_to_talk\")." },
 
@@ -409,6 +411,8 @@ static const struct config_setting config_settings[] =
 		"\"on\", \"half_damage\", \"quarter_damage\" or \"off\" (FRIENDLY FIRE in\n"
 		"co-op's Server Setup > Co-op Options writes its choice here). Their AI\n"
 		"allies they always can, as in the campaign." },
+	{ "network.coop_chain_reaction_damage", _config_integer, "100", "HALO_NET_COOP_CHAIN_REACTION_DAMAGE", _environment_value,
+		_platform_all, "Host: player damage from chain-triggered loose grenades, as a percentage: 100 (Default), 75, 50 or 25." },
 	{ "network.coop_player_collisions", _config_boolean, "true", "HALO_NET_COOP_PLAYER_COLLISIONS", _environment_value,
 		_platform_all,
 		"Whether the players of an online co-op game bump into each other;\n"

@@ -989,6 +989,8 @@ COOP_ENEMIES_MULTIPLIERS = [2, 4, 8, 16, 32]
 COOP_SETUP_SCREENS = [
     ("coop_options", "CO-OP OPTIONS", "Friendly fire, the enemies and player collisions,\\nfor this game.", [
         ("coop_friendly_fire", "FRIENDLY FIRE:", FRIENDLY_FIRE_CHOICES, FRIENDLY_FIRE_HELP),
+        ("coop_chain_damage", "CHAIN-REACTION DAMAGE:", ["DEFAULT", "75%", "50%", "25%"],
+         ["Player damage from grenades triggered by a chain\\nreaction. Thrown grenades and enemies are unchanged."] * 4),
         ("coop_extra_enemies", "EXTRA ENEMIES:", ["NONE", "PER PLAYER", "STATIC MULTIPLIER"], [
             "Enemy squads are as the campaign has them.",
             "Enemy squads grow with the players: by the value of\\n'Per Player' for each player past the first.",

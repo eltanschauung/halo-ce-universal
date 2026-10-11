@@ -645,6 +645,7 @@ symbols in this file:
 
 #include "cseries.h"
 #include "units.h"
+#include "network_social.h"
 
 #include "bipeds.h"
 #include "biped_definitions.h"
@@ -7287,6 +7288,8 @@ void unit_damage_aftermath(
 
 	if (lethal || feigned)
 	{
+		if (lethal && !feigned)
+			network_social_note_death(unit_index, damage_data);
 		unit_died(unit_index, feigned);
 	}
 

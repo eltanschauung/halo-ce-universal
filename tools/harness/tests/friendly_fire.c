@@ -24,21 +24,25 @@ enum { _object_dead_bit, _object_being_damaged_body_depleted_bit,
  _object_being_damaged_killed_instantly_bit, _damage_bypasses_shields_bit,
  _damage_skips_shields_bit, _damage_resistance_takes_shield_damage_for_children_bit,
  _damage_resistance_takes_body_damage_for_children_bit, _damage_only_hurts_shields_bit,
- _damage_resistance_only_hurt_by_explosives_bit, _damage_detonates_explosives_bit };
+ _damage_resistance_only_hurt_by_explosives_bit, _damage_detonates_explosives_bit, _damage_headshot_bit, _damage_material_head_bit,
+ _damage_can_cause_headshots_bit, _damage_can_cause_multiplayer_headshots_bit };
 static struct { struct { unsigned long damage_flags; real body_vitality, maximum_shield_vitality; } object; } obj, *current_object=&obj;
 struct resistance { unsigned long flags; };
 static struct { struct resistance resistance; } collision, *collision_model=&collision;
 static struct definition { unsigned long flags; } definition, *damage_definition=&definition;
 static struct data { unsigned long flags; } data, *damage=&data;
-static void *damage_material, *object_normal;
+static struct { unsigned long flags; } material, *damage_material=&material;
+static void *object_normal;
 static real shield_available, dealt_shield, dealt_body;
 static int depleted;
+static real chain_scale=1;
+static real network_social_chain_damage_scale(struct data *damage,long index){return chain_scale;}
 static void object_deplete_body(long index) { depleted++; }
 static void object_damage_shield(long i, struct resistance *r, void *m, struct definition *d,
  struct data *hit, unsigned long *flags, real *shield, real *total)
 { *shield = *total < shield_available ? *total : shield_available; *total -= *shield; dealt_shield += *shield; }
 static void object_damage_body(long i, long region, long node, void *normal, struct resistance *r,
- void *m, struct definition *d, struct data *hit, unsigned long *flags, real *body, real *multiplier, real total)
+ void *m, struct definition *d, struct data *hit, unsigned long *flags, real *body, real *multiplier, real total, boolean allow_instant_kill)
 { *body = total; dealt_body += total; }
 static real dispatch(short friendly_damage, real friendly_damage_scale, real total_damage,
  boolean force_kill, boolean distributed_damage_authorized, short damaged_object_count)
@@ -82,9 +86,15 @@ static int policy(void)
  CHECK(game_engine_friendly_damage(1,20,FALSE,&scale)==_friendly_damage_all && scale==1, "friendly fire regression at line %d", __LINE__);
  return 0;
 }
+static int combined(void)
+{
+ for(int f=1;f<=4;f*=2)for(int c=1;c<=4;c++){reset();chain_scale=c*.25f;dispatch(_friendly_damage_all,1.f/f,100,FALSE,FALSE,0);CHECK(dealt_body+dealt_shield==100.f/f*chain_scale,"combined shield/body scale");}
+ return 0;
+}
 int main(int argc,char **argv)
 {
  CHECK(argc==2, "friendly fire regression at line %d", __LINE__);
+ if (!strcmp(argv[1],"combined")) return combined();
  if (!strcmp(argv[1],"policy")) return policy();
  if (!strcmp(argv[1],"damage")) {
   for(int i=0;i<3;i++) { real scale=i==0?1.f:i==1?.5f:.25f; reset();

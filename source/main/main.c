@@ -331,6 +331,7 @@ symbols in this file:
 
 /* ---------- headers */
 
+#include "network_social.h"
 #include "cseries.h"
 #include "errors.h"
 #include "cseries/profile.h"
@@ -1160,7 +1161,7 @@ void set_window_camera_values(
 				1.0f));
 
 		if (window->local_player_index != NONE &&
-			!console_is_active() &&
+			!console_is_active() && !chat_is_active() &&
 			!game_time_get_paused() &&
 			director_get_perspective(window->local_player_index) !=
 				_director_perspective_neutral)
@@ -3443,6 +3444,7 @@ void main_loop(
 			network_test_update(main_globals.main_menu_scenario_loaded, main_globals.seconds_elapsed);
 			/* port: voice chat, in the lobby and in game (port/linux/game/network_voice.c) */
 			network_voice_update();
+			network_social_update();
 			network_spray_update();
 			connection = main_globals.connection;
 			if (connection==_game_connection_network_client)
@@ -3495,11 +3497,15 @@ void main_loop(
 			if (game_in_progress())
 			{
 				terminal_update();
+				chat_update();
 
-				if (!console_update() || main_globals.connection!=_game_connection_local)
+				if (chat_is_active() || !console_update() || main_globals.connection!=_game_connection_local)
 				{
-					debug_keys_update();
-					cheats_update();
+					if (!chat_is_active())
+					{
+						debug_keys_update();
+						cheats_update();
+					}
 					player_control_update((real)main_globals.halt_time_scale*main_globals.seconds_elapsed);
 
 					connection = main_globals.connection;

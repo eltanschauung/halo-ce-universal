@@ -119,6 +119,11 @@ enum
 	_distributed_message_voice_down = 81,
 	_distributed_message_voice_config = 82,
 
+	/* Optional fork match chat and co-op scores. No core protocol changes. */
+	_distributed_message_social_request = 96,
+	_distributed_message_social_line = 97,
+	_distributed_message_social_scores = 98,
+
 	NUMBER_OF_DISTRIBUTED_MESSAGES
 };
 

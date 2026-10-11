@@ -2774,6 +2774,7 @@ symbols in this file:
 
 /* ---------- headers */
 
+#include "network_social.h"
 #include "cseries/cseries.h"
 #include "cseries/errors.h"
 #include "cseries/profile.h"
@@ -13973,6 +13974,9 @@ static void hs_enumerate_function_names(
 	unsigned option_index;
 	const struct console_option *option;
 
+	hs_tokens_enumerate_add_string("kill");
+	hs_tokens_enumerate_add_string("suicide");
+	hs_tokens_enumerate_add_string("say");
 	for (function_index = 0; function_index<hs_function_table_count; function_index++)
 		hs_tokens_enumerate_add_string(hs_function_get(function_index)->name);
 	for (option_index = 0; (option = console_option_get(option_index)) != NULL; option_index++)
@@ -15378,6 +15382,8 @@ static boolean hs_compile_and_evaluate_command(
 		if (console_option_execute(expression, &option_succeeded))
 			return option_succeeded;
 	}
+	if (network_social_console_command(expression, &success))
+		return success;
 	/* port: the co-op host's bringto, which brings every player to the host
 	(players.c; a client is told it is the host's) */
 	if (hs_host_player_command(expression, "bringto"))

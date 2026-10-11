@@ -103,6 +103,7 @@ symbols in this file:
 
 #include "cseries.h"
 #include "damage.h"
+#include "network_social.h"
 #include "ai/ai.h"
 #include "cseries/errors.h"
 #include "effects/effects.h"
@@ -1063,13 +1064,13 @@ static void object_damage_aftermath(
 		case _object_type_weapon:
 		case _object_type_equipment:
 		case _object_type_garbage:
-			item_accelerate(
+			item_accelerate_from_damage(
 				object_index,
 				&acceleration,
 				damage->scale > 0.5f &&
 					TEST_FLAG(
 						damage_effect->damage.flags,
-						_damage_detonates_explosives_bit));
+						_damage_detonates_explosives_bit), damage);
 			break;
 
 		case _object_type_biped:
@@ -1166,7 +1167,8 @@ static void object_damage_body(
 	unsigned long *being_damaged_flags,
 	real *body_damage,
 	real *body_damage_multiplier,
-	real total_damage)
+	real total_damage,
+	boolean allow_instant_kill)
 {
 	struct object_datum *object = object_get(object_index);
 	real damage_amount = damage_material->body_damage_multiplier*total_damage;
@@ -1229,7 +1231,7 @@ static void object_damage_body(
 	{
 		if (damage_amount > 0.f && TEST_FLAG(damage_material->flags, _damage_material_head_bit))
 		{
-			if (TEST_FLAG(damage_definition->flags, _damage_can_cause_headshots_bit))
+			if (allow_instant_kill && TEST_FLAG(damage_definition->flags, _damage_can_cause_headshots_bit))
 			{
 				if (game_engine_running() ||
 					object->object.type != _object_type_biped ||
@@ -1693,6 +1695,7 @@ void object_cause_damage(
 			body_part = NONE;
 			friendly_damage = _friendly_damage_all;
 			friendly_damage_scale = 1.f;
+			SET_FLAG(damage->flags, _damage_headshot_bit, FALSE);
 
 			if (collision_model_index != NONE)
 			{
@@ -1776,6 +1779,7 @@ void object_cause_damage(
 
 				/* Scale once before shield absorption and health spillover. Keep
 				parent propagation in unscaled units: each object has its own rules. */
+				friendly_damage_scale *= network_social_chain_damage_scale(damage, current_object_index);
 				object_total_damage = total_damage * friendly_damage_scale;
 
 				/* port: nor does a teammate's hit kill outright (a melee from
@@ -1839,6 +1843,10 @@ void object_cause_damage(
 						object_total_damage = 0.f;
 					}
 
+					SET_FLAG(damage->flags, _damage_headshot_bit,
+						object_total_damage > 0.f && TEST_FLAG(damage_material->flags, _damage_material_head_bit) &&
+						(TEST_FLAG(damage_definition->flags, _damage_can_cause_headshots_bit) ||
+						 TEST_FLAG(damage_definition->flags, _damage_can_cause_multiplayer_headshots_bit)));
 					object_damage_body(
 						current_object_index,
 						damaged_object_count == 0 ? region_index : NONE,
@@ -1851,7 +1859,7 @@ void object_cause_damage(
 						&being_damaged_flags,
 						&body_damage,
 						&body_damage_multiplier,
-						object_total_damage);
+						object_total_damage, friendly_damage_scale == 1.f || distributed_damage_authorized);
 					damaged_object_count = 0;
 				}
 
