@@ -492,6 +492,14 @@ MT = "main_menu/multiplayer_type_select"
 # and their helps after the five of its own (its helps are the rows' values'
 # in turn: menu_functions.c's gametype_option_help)
 SLAYER_EDIT = "main_menu/settings_select/multiplayer_setup/playlist_edit/slayer_edit"
+FRIENDLY_FIRE_CHOICES = ["ON", "50% LESS", "75% LESS", "OFF"]
+FRIENDLY_FIRE_HELP = [
+    "Friendly hits deal normal damage.",
+    "Friendly hits deal 50% less damage to shields and health.",
+    "Friendly hits deal 75% less damage to shields and health.",
+    "Friendly hits cannot damage shields or health.",
+]
+
 STRING_INSERTS = {
     # (Teamplay Options' voice chat and vote kick rows, after its own:
     # TEAMPLAY_ROWS)
@@ -523,6 +531,15 @@ def LOADOUT_HELPS(slot: str) -> list:
 
 
 STRING_OVERRIDES.update({
+    f"{TEAMPLAY_EDIT}/var_friendly_fire": FRIENDLY_FIRE_CHOICES,
+    f"{TEAMPLAY_EDIT}/cap_teamplay_options": FRIENDLY_FIRE_HELP + [
+        'No respawn time penalty will be assessed to players\\nwho kill a teammate.',
+        'Players who kill a teammate will be assessed a \\nfive-second respawn penalty the next time they die.',
+        'Players who kill a teammate will be assessed a \\nten-second respawn penalty the next time they die.',
+        'Players who kill a teammate will be assessed\\na fifteen-second respawn penalty the next time\\nthey die.',
+        'Team autobalancing will be disabled.  Players will\\nbe free to change teams as they wish.',
+        'Team autobalancing will be enabled.  Players will\\nnot be able to change to a more full team.',
+    ],
     f"{MT}/multiplayer_options": ["JOIN GAME", "CREATE GAME", "INTERNET", "LAN", "DIRECT LINK", "EDIT GAMETYPES",
                                   "SERVER BROWSER", "CO-OP CAMPAIGN"],
     f"{MT}/multiplayer_option_descriptions": [
@@ -971,12 +988,7 @@ COOP_ENEMIES_MULTIPLIERS = [2, 4, 8, 16, 32]
 # settings' values)
 COOP_SETUP_SCREENS = [
     ("coop_options", "CO-OP OPTIONS", "Friendly fire, the enemies and player collisions,\\nfor this game.", [
-        ("coop_friendly_fire", "FRIENDLY FIRE:", ["OFF", "ON", "SHIELD ONLY", "EXPLOSIVES ONLY"], [
-            "Players can not be hurt by weapons and explosives\\nfired by the other players.",
-            "Players can be hurt by weapons or explosives\\nfired by the other players.",
-            "Damage from the other players will only reduce\\nshields. Health will be unaffected.",
-            "Players can be hurt by damage from explosives\\nfired by the other players.",
-        ]),
+        ("coop_friendly_fire", "FRIENDLY FIRE:", FRIENDLY_FIRE_CHOICES, FRIENDLY_FIRE_HELP),
         ("coop_extra_enemies", "EXTRA ENEMIES:", ["NONE", "PER PLAYER", "STATIC MULTIPLIER"], [
             "Enemy squads are as the campaign has them.",
             "Enemy squads grow with the players: by the value of\\n'Per Player' for each player past the first.",

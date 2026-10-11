@@ -252,10 +252,10 @@
 		<on event="left_mouse" run="mouse spinner 1wide click"/>
 	</widget>
 	<strings name="main_menu/multiplayer_type_select/server_settings/coop_options/var_coop_friendly_fire">
-		<string text="OFF"/>
 		<string text="ON"/>
-		<string text="SHIELD ONLY"/>
-		<string text="EXPLOSIVES ONLY"/>
+		<string text="50% LESS"/>
+		<string text="75% LESS"/>
+		<string text="OFF"/>
 	</strings>
 	<widget name="main_menu/multiplayer_type_select/server_settings/coop_options/op_coop_extra_enemies" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
 		<child widget="main_menu/multiplayer_type_select/server_settings/coop_options/coop_extra_enemies_label"/>
@@ -358,10 +358,10 @@
 		<string text="PLAYER COLLISIONS:"/>
 	</strings>
 	<strings name="main_menu/multiplayer_type_select/server_settings/coop_options/cap_coop_options">
-		<string text="Players can not be hurt by weapons and explosives\nfired by the other players."/>
-		<string text="Players can be hurt by weapons or explosives\nfired by the other players."/>
-		<string text="Damage from the other players will only reduce\nshields. Health will be unaffected."/>
-		<string text="Players can be hurt by damage from explosives\nfired by the other players."/>
+		<string text="Friendly hits deal normal damage."/>
+		<string text="Friendly hits deal 50% less damage to shields and health."/>
+		<string text="Friendly hits deal 75% less damage to shields and health."/>
+		<string text="Friendly hits cannot damage shields or health."/>
 		<string text="Enemy squads are as the campaign has them."/>
 		<string text="Enemy squads grow with the players: by the value of\n'Per Player' for each player past the first."/>
 		<string text="Enemy squads are the amount below times as large,\nhowever many players there are."/>
@@ -431,6 +431,7 @@
 		<string text="ANYONE NEAR"/>
 		<string text="TEAM"/>
 		<string text="TEAM, ENEMIES NEAR"/>
+		<string text="ALL"/>
 	</strings>
 	<widget name="main_menu/multiplayer_type_select/server_settings/voice_options/op_voice_lobby" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
 		<child widget="main_menu/multiplayer_type_select/server_settings/voice_options/voice_lobby_label"/>
@@ -506,6 +507,7 @@
 		<string text="Players hear everyone who is near them."/>
 		<string text="Players hear all their teammates, wherever they\nare."/>
 		<string text="Players hear all their teammates, and the enemies\nwho are near them."/>
+		<string text="Players hear everyone, wherever they are, with\nno proximity effects."/>
 		<string text="Everyone hears everyone in the lobby, before and\nafter the game."/>
 		<string text="No voice chat in the lobby."/>
 		<string text="Voices at 8 kilobits a second, in the lobby\nand in the game."/>

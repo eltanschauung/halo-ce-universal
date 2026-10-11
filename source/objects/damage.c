@@ -1439,6 +1439,8 @@ void object_cause_damage(
 	long damaged_object_indices[16];
 	/* port: the gametype's friendly fire (game_engine_friendly_damage) */
 	short friendly_damage;
+	real friendly_damage_scale;
+	real object_total_damage;
 
 	/* the distributed netcode (port/linux/NETCODE.md): the host deals
 	damage; a client reports its own players' hits instead, and the host
@@ -1690,6 +1692,7 @@ void object_cause_damage(
 			being_damaged_flags = 0;
 			body_part = NONE;
 			friendly_damage = _friendly_damage_all;
+			friendly_damage_scale = 1.f;
 
 			if (collision_model_index != NONE)
 			{
@@ -1730,7 +1733,7 @@ void object_cause_damage(
 					friendly_damage = game_engine_friendly_damage(damage->owner_player_index, current_object_index,
 						TEST_FLAG(damage->flags, _damage_area_of_effect_bit) ||
 						damage_definition->category == _damage_category_grenade ||
-						damage_definition->category == _damage_category_highexplosive);
+						damage_definition->category == _damage_category_highexplosive, &friendly_damage_scale);
 				}
 
 				if (damaged_object_count == 0 &&
@@ -1771,12 +1774,17 @@ void object_cause_damage(
 					force_kill = TRUE;
 				}
 
+				/* Scale once before shield absorption and health spillover. Keep
+				parent propagation in unscaled units: each object has its own rules. */
+				object_total_damage = total_damage * friendly_damage_scale;
+
 				/* port: nor does a teammate's hit kill outright (a melee from
 				behind, an instant kill) where the gametype's friendly fire
 				spares the body; a killing blow the host dealt (a client's
 				replay of it) is dealt as the host dealt it */
 				if (force_kill &&
-					(friendly_damage == _friendly_damage_all || distributed_damage_authorized) &&
+					((friendly_damage == _friendly_damage_all && friendly_damage_scale == 1.f) ||
+						distributed_damage_authorized) &&
 					!TEST_FLAG(current_object->object.damage_flags, _object_dead_bit))
 				{
 					current_object->object.body_vitality = 0.f;
@@ -1808,7 +1816,7 @@ void object_cause_damage(
 						damage,
 						&being_damaged_flags,
 						&shield_damage,
-						&total_damage);
+						&object_total_damage);
 				}
 
 				if (friendly_damage == _friendly_damage_all &&
@@ -1828,7 +1836,7 @@ void object_cause_damage(
 							damage_definition->flags,
 							_damage_detonates_explosives_bit))
 					{
-						total_damage = 0.f;
+						object_total_damage = 0.f;
 					}
 
 					object_damage_body(
@@ -1843,9 +1851,11 @@ void object_cause_damage(
 						&being_damaged_flags,
 						&body_damage,
 						&body_damage_multiplier,
-						total_damage);
+						object_total_damage);
 					damaged_object_count = 0;
 				}
+
+				total_damage = object_total_damage / friendly_damage_scale;
 
 				if (!material_effect_recorded &&
 					(shield_damage > _real_epsilon || body_damage > _real_epsilon))

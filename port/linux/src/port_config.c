@@ -405,8 +405,8 @@ static const struct config_setting config_settings[] =
 		"co-op, which writes its choice here." },
 	{ "network.coop_friendly_fire", _config_string, "\"on\"", "HALO_NET_COOP_FRIENDLY_FIRE", _environment_value,
 		_platform_all,
-		"Whether the players of an online co-op game hurt each other: \"off\",\n"
-		"\"on\", \"shields_only\" or \"explosives_only\" (FRIENDLY FIRE in\n"
+		"Whether the players of an online co-op game hurt each other:\n"
+		"\"on\", \"half_damage\", \"quarter_damage\" or \"off\" (FRIENDLY FIRE in\n"
 		"co-op's Server Setup > Co-op Options writes its choice here). Their AI\n"
 		"allies they always can, as in the campaign." },
 	{ "network.coop_player_collisions", _config_boolean, "true", "HALO_NET_COOP_PLAYER_COLLISIONS", _environment_value,

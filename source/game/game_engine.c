@@ -7576,16 +7576,19 @@ boolean game_engine_vehicle_placement_allowed(
 
 /* port: the gametype's friendly fire (game_variant_options) on a teammate's
 hit of the object (its damage marked friendly: object_cause_damage): all of
-it, none, its shields only, or explosives' only. A player's own hit of
+it, none, reduced damage, its shields only, or explosives' only. A player's own hit of
 himself, or of what is not a player's teammate's, is the game's own. */
 short game_engine_friendly_damage(
 	long attacker_player_index,
 	long object_index,
-	boolean explosive)
+	boolean explosive,
+	real *damage_scale)
 {
 	struct game_variant_options const *options = game_variant_options_get();
 	struct player_datum *attacker;
 	short friendly_fire;
+
+	*damage_scale = 1.f;
 
 	/* port: network co-op's friendly fire is Server Setup's FRIENDLY FIRE,
 	in the host's game settings (only the host deals damage), between its
@@ -7611,6 +7614,8 @@ short game_engine_friendly_damage(
 		return _friendly_damage_all;
 	switch (friendly_fire)
 	{
+	case _friendly_fire_half_damage: *damage_scale = 0.5f; return _friendly_damage_all;
+	case _friendly_fire_quarter_damage: *damage_scale = 0.25f; return _friendly_damage_all;
 	case _friendly_fire_off: return _friendly_damage_none;
 	case _friendly_fire_shields_only: return _friendly_damage_shields;
 	case _friendly_fire_explosives_only: return explosive ? _friendly_damage_all : _friendly_damage_none;

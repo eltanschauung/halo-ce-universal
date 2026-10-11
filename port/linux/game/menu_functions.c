@@ -2937,7 +2937,7 @@ gametype_options' coop_friendly_fire_spinner and server_start have them, in
 this order) */
 static short const cooperative_friendly_fire_modes[] =
 {
-	_friendly_fire_off, _friendly_fire_on, _friendly_fire_shields_only, _friendly_fire_explosives_only
+	_friendly_fire_on, _friendly_fire_half_damage, _friendly_fire_quarter_damage, _friendly_fire_off
 };
 
 /* the most players Server Setup shows and sets: the multiplayer game's, or
@@ -3156,7 +3156,7 @@ static boolean server_start(void)
 		/* (as CO-OP OPTIONS left them: network.coop_friendly_fire, in
 		cooperative_friendly_fire_modes' order, and
 		network.coop_player_collisions) */
-		static char const *const friendly_fire_names[] = { "off", "on", "shields_only", "explosives_only" };
+		static char const *const friendly_fire_names[] = { "on", "half_damage", "quarter_damage", "off" };
 		char const *friendly_fire = config_string("network.coop_friendly_fire");
 		short index;
 
@@ -3167,6 +3167,10 @@ static boolean server_start(void)
 			if (!strcmp(friendly_fire, friendly_fire_names[index]))
 				multiplayer.cooperative_friendly_fire = cooperative_friendly_fire_modes[index];
 		}
+		if (friendly_fire && !strcmp(friendly_fire, "shields_only"))
+			multiplayer.cooperative_friendly_fire = _friendly_fire_shields_only;
+		if (friendly_fire && !strcmp(friendly_fire, "explosives_only"))
+			multiplayer.cooperative_friendly_fire = _friendly_fire_explosives_only;
 		multiplayer.cooperative_no_player_collisions = !config_boolean("network.coop_player_collisions");
 		network_game_server_port_set_cooperative_friendly_fire(multiplayer.cooperative_friendly_fire);
 		network_game_server_port_set_cooperative_player_collisions(!multiplayer.cooperative_no_player_collisions);
@@ -4778,7 +4782,7 @@ static struct gametype_option const gametype_options[] =
 		{ 5, 10, 15, 25, 50, 75, 100, 150, 200, 250, 500 } },
 	/* team options */
 	{ "friendly_fire_spinner", _option_short, OPTIONS_FIELD(friendly_fire), 0, 4,
-		{ _friendly_fire_off, _friendly_fire_on, _friendly_fire_shields_only, _friendly_fire_explosives_only } },
+		{ _friendly_fire_on, _friendly_fire_half_damage, _friendly_fire_quarter_damage, _friendly_fire_off } },
 	{ "friendly_fire_penalty_spinner", _option_short, OPTIONS_FIELD(friendly_fire_penalty), 0, 4, { 0, 5, 10, 15 } },
 	{ "autobalance_spinner", _option_option_byte, OPTIONS_FIELD(auto_team_balance), 0, 2, { 0, 1 } },
 	/* (the host's voice chat, below them: port/linux/game/network_voice.c;
@@ -4795,7 +4799,7 @@ static struct gametype_option const gametype_options[] =
 	/* co-op's options (Server Setup's CO-OP OPTIONS: tools/port_settings.py's
 	COOP_SETUP_SCREENS; coop_enemies.c) */
 	{ "coop_friendly_fire_spinner", _option_setting, 0, 0, 4, { 0 }, "network.coop_friendly_fire",
-		{ "off", "on", "shields_only", "explosives_only" } },
+		{ "on", "half_damage", "quarter_damage", "off" } },
 	{ "coop_extra_enemies_spinner", _option_setting, 0, 0, 3, { 0 }, "network.coop_enemies_mode",
 		{ "none", "per_player", "multiplier" } },
 	{ "coop_extra_pickups_spinner", _option_setting, 0, 0, 2, { 0 }, "network.coop_pickups",
