@@ -85,13 +85,23 @@ void network_killfeed_note_death(long unit_index, struct damage_data const *dama
     long slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(unit_index);
     long dead_index, killer_index;
     if (game_connection() != _game_connection_network_server || !network_coop_active() ||
-        !damage || slot < 0 || slot >= HALO_PORT_MAXIMUM_OBJECTS_PER_MAP ||
-        !(unit = unit_try_and_get(unit_index)) || killfeed_dead_units[slot] == unit_index ||
-        TEST_FLAG(damage->flags, _damage_no_statistics_bit)) return;
+        slot < 0 || slot >= HALO_PORT_MAXIMUM_OBJECTS_PER_MAP ||
+        !(unit = unit_try_and_get(unit_index)) || killfeed_dead_units[slot] == unit_index) return;
     dead_index = unit->unit.player_index;
     dead = player_try_and_get(dead_index);
     if (!killfeed_present(dead) || dead->unit_index != unit_index) return;
     killfeed_dead_units[slot] = unit_index;
+    if (!damage)
+    {
+        if (TEST_FLAG(unit->object.damage_flags, _object_die_act_of_god_silent_bit) ||
+            TEST_FLAG(unit->object.damage_flags, _object_die_act_of_god_no_statistics_bit)) return;
+        killfeed_player_name(dead, name, sizeof(name));
+        snprintf(line, sizeof(line), "%s %s", name,
+            TEST_FLAG(unit->object.flags, _object_outside_of_map_bit) ? "fell out of the world" : "died");
+        distributed_send_notice(line);
+        return;
+    }
+    if (TEST_FLAG(damage->flags, _damage_no_statistics_bit)) return;
     killer_index = damage->owner_player_index;
     killer = player_try_and_get(killer_index);
     owner = object_try_and_get(damage->owner_object_index);

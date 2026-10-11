@@ -2755,6 +2755,9 @@ void unit_died(
 	unit = unit_get(unit_index);
 	if (!feigned)
 	{
+		/* port: direct/script deaths have no damage aftermath; ordinary
+		damage deaths were already announced, once (network_killfeed.c). */
+		network_killfeed_note_death(unit_index, NULL);
 		unit->unit.feign_death_timer = 0;
 	}
 	else

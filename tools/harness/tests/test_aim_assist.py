@@ -16,12 +16,12 @@ def generated(fault=None):
 
 @pytest.mark.parametrize('case',['allowed','devices','scope','replication','admission','reset'])
 def test_case(case):
-    status,output=run(build('aim_assist',generated(),('-DHALO_ANDROID',)),case)
+    status,output=run(build('aim_assist',generated()),case)
     assert status==0,output
 
 @pytest.mark.parametrize('fault,case',[('authority','admission'),('override','devices')])
 def test_negative(fault,case):
-    status,output=run(build('aim_assist',generated(fault),('-DHALO_ANDROID',)),case)
+    status,output=run(build('aim_assist',generated(fault)),case)
     assert status==CHECK_FAILED,output
 
 def test_menu():

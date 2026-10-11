@@ -1,3 +1,4 @@
+#define HALO_ANDROID 1
 #include "harness.h"
 #include <string.h>
 typedef unsigned short word;

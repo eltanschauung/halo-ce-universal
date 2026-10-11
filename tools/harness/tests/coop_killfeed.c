@@ -58,7 +58,7 @@ static void telnet_console_print(char const *text){snprintf(shown_text,sizeof(sh
 static void distributed_send(void *message,byte type,byte count,word size,int direction){memcpy(wire,message,size);wire_size=size;sent++;}
 boolean network_distributed_client_send_reliably(void *message,word size){memcpy(wire,message,size);wire_size=size;sent++;return TRUE;}
 
-enum { _object_die_act_of_god_bit=6 };
+enum { _object_die_act_of_god_bit=6, _object_die_act_of_god_silent_bit, _object_die_act_of_god_no_statistics_bit };
 static void distributed_send_notice(char const *s){snprintf(shown_text,sizeof(shown_text),"%s",s);sent++;shown++;}
 #include "under_test.inc"
 static void setup(void){
@@ -96,6 +96,13 @@ int main(int argc,char **argv){CHECK(argc==2,"case");char const *case_name=argv[
  else CASE("stale") {
   network_killfeed_note_death(0x30001,&d);CHECK(!sent,"stale unit");players[1].unit_index=unit_handles[0];network_killfeed_note_death(unit_handles[1],&d);CHECK(!sent,"stale player backlink");
   players[1].unit_index=unit_handles[1];players[1].quit_out_of_game=TRUE;network_killfeed_note_death(unit_handles[1],&d);CHECK(!sent,"quit player");network_killfeed_note_death(NONE,&d);network_killfeed_note_death(unit_handles[1],NULL);
+ }
+ else CASE("direct") {
+  network_killfeed_note_death(unit_handles[1],NULL);CHECK(!strcmp(shown_text,"Quixote died")&&sent==1,"direct death omitted");
+  network_killfeed_note_death(unit_handles[1],NULL);CHECK(sent==1,"duplicate direct death");
+  network_killfeed_reset();network_killfeed_note_death(unit_handles[1],&d);network_killfeed_note_death(unit_handles[1],NULL);CHECK(sent==2,"damage and direct duplicate");
+  network_killfeed_reset();d.flags=FLAG(_damage_no_statistics_bit);network_killfeed_note_death(unit_handles[1],&d);network_killfeed_note_death(unit_handles[1],NULL);CHECK(sent==2,"no-statistics death announced by fallback");
+  for(int bit=_object_die_act_of_god_silent_bit;bit<=_object_die_act_of_god_no_statistics_bit;bit++){network_killfeed_reset();units[1].object.damage_flags=FLAG(bit);network_killfeed_note_death(unit_handles[1],NULL);CHECK(sent==2,"silent script death announced");}
  }
  else CASE("fallback") {
   d.definition_index=NONE;d.owner_object_index=NONE;players[1].name[1]='|';players[1].name[2]='\n';network_killfeed_note_death(unit_handles[1],&d);CHECK(strstr(shown_text,"an unknown cause")&&!strchr(shown_text,'|')&&!strchr(shown_text,'\n'),"unsafe/unknown text");
