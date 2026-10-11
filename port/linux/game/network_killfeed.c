@@ -2,6 +2,7 @@
    Only the host formats a death, then uses the existing reliable notices. */
 #include "cseries.h"
 #include "game/game.h"
+#include "game/game_globals.h"
 #include "game/game_allegiance.h"
 #include "game/players.h"
 #include "networking/network_game_globals.h"

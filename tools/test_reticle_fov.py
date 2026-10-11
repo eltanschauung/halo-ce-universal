@@ -141,12 +141,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--cc', default='clang')
     args = parser.parse_args()
-    camera = (ROOT/'port/linux/game/render_fov.c').read_text()
+    camera = (ROOT/'port/linux/game/view_fov.c').read_text()
     hud = (ROOT/'source/interface/hud_draw.c').read_text()
     source = PRELUDE + fov.block((ROOT/'source/render/render_cameras.c').read_text(), 'real render_camera_get_adjusted_field_of_view_tangent(')
     source += '\n' + fov.block((ROOT/'source/items/weapons.c').read_text(), 'real weapon_get_field_of_view(')
-    source += '\nstatic real reticle_scales[MAXIMUM_LOCAL_PLAYERS];\n'
-    for marker in ('static float render_fov_adjust(', 'float render_fov_vertical(', 'float render_fov_reticle_scale('):
+    source += '\nstatic real reticle_scales[MAXIMUM_LOCAL_PLAYERS];\nstatic real authored_vertical[MAXIMUM_LOCAL_PLAYERS];\n'
+    for marker in ('static real render_fov_adjust(', 'real render_fov_vertical(', 'real render_fov_reticle_scale('):
         source += fov.block(camera, marker) + '\n'
     for marker in ('void hud_calculate_point(', 'static void hud_calculate_bitmap_bounds(', 'static void hud_draw_bitmap_internal(', 'static void hud_draw_bitmap_with_meter('):
         # Skip file-local forward declarations before extracting definitions.

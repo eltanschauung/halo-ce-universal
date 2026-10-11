@@ -18,7 +18,9 @@ assert [e.get('event') for e in spinner.findall('on')] == ['created']
 assert any(w.get('name').endswith('/settings_next_page') for w in menu.findall('widget'))
 print('PASS: Video Setup category Viewmodels ON/OFF uses the persistent display preference and normal pending-edit lifecycle')
 
-helper = (ROOT/'port/linux/game/viewmodel_visibility.c').read_text()
+helper = (ROOT/'port/linux/game/view_fov.c').read_text()
+helper = helper[helper.index('boolean viewmodel_is_visible(void)'):]
+fixture.PRELUDE += '\n#define TRUE 1\nunsigned long config_changes(void);\nint config_boolean(const char *name);\n'
 fixture.PRELUDE += re.sub(r'^#include.*\n', '', helper, flags=re.M)
 fixture.TESTS = fixture.TESTS.replace('if(argc>1){', 'if(argc>1){CHECK(!viewmodel_is_visible());', 1)
 fixture.TESTS = fixture.TESTS.replace(' char oversized[500];', r'''
@@ -37,12 +39,12 @@ fixture.TESTS = fixture.TESTS.replace(' char oversized[500];', r'''
 
 weapons = (ROOT/'source/interface/first_person_weapons.c').read_text()
 start = weapons.index('void first_person_weapon_draw(')
-assert 'if (!viewmodel_is_visible())' in weapons[start:start+130]
+assert 'if (!viewmodel_is_visible())' in weapons[start:weapons.index('\nvoid ', start+1)]
 assert weapons.count('viewmodel_is_visible()') == 1  # draw only; lifecycle/markers untouched
 particles = (ROOT/'source/render/render_particles.c').read_text()
 assert 'viewmodel_draws_geometry(owned_by_local_player &&' in particles
 flares = (ROOT/'source/rasterizer/rasterizer_lights.c').read_text()
-assert 'viewmodel_draws_geometry(parameters->compressed_window_index & _lens_flare_first_person_weapon_flag)' in flares
+assert 'viewmodel_draws_geometry((parameters->compressed_window_index & _lens_flare_first_person_weapon_flag) != 0)' in flares
 
 if __name__ == '__main__':
     fixture.main()

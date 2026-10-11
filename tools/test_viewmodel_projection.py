@@ -16,6 +16,7 @@ PRELUDE = r'''
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#define _pi 3.14159265358979323846f
 typedef float real;
 typedef int boolean;
 #define TRUE 1
@@ -34,6 +35,8 @@ static unsigned long generation;
 static double desired;
 static int config_reads;
 static float uploaded_angle;
+static real authored;
+static real render_fov_authored_vertical(short p){(void)p;return authored;}
 static double config_real(const char*n){CHECK(!strcmp(n,"display.viewmodel_fov"));config_reads++;return desired;}
 static unsigned long config_changes(void){return generation;}
 static int cinematic_in_progress(void){return cinematic;}
@@ -96,8 +99,9 @@ int main(void){
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('--cc',default='clang');a=p.parse_args()
-    source=(ROOT/'port/linux/game/viewmodel_fov.c').read_text()
-    source=re.sub(r'^#include.*\n','',source,flags=re.M)
+    source=(ROOT/'port/linux/game/view_fov.c').read_text()
+    source=source[source.index('static unsigned long projection_depth;'):source.index('/* ---------- whether the first-person weapon is drawn */')]
+    source='enum { _rasterizer_target_render_primary = 0 };\n'+source
     cameras=(ROOT/'source/render/render_cameras.c').read_text()
     start=cameras.index('void render_frustum_get_projection_bounds(')
     end=cameras.index('\nvoid render_camera_screen_to_world(',start)

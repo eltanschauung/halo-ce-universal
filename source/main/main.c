@@ -384,6 +384,13 @@ symbols in this file:
 #include "network_voice.h" /* port: port/linux/game/network_voice.c */
 #include "network_aim_assist.h" /* port: port/linux/game/network_aim_assist.c */
 #include "halo_spray.h"
+#include "profile_sections.h" /* port: port/linux/include/profile_sections.h */
+#ifdef HALO_PROFILE
+#include "profile_trace.h" /* port: port/linux/src/profile_trace.c */
+#endif
+#ifdef HALO_WEB
+#include <emscripten.h> /* port: the browser runs the main loop (port/web/README.md) */
+#endif
 #include "camera/director.h"
 #include "camera/observer.h"
 #include "cutscene/cinematics.h"
@@ -396,7 +403,7 @@ symbols in this file:
 #include "text/font_group.h"
 #include "tag_files/files.h"
 #include "custom_edition_cache.h" /* port: custom_edition_level_name */
-#include "render_fov.h" /* port: local world FOV, before projection and culling */
+#include "view_fov.h" /* port: display.fov, before the projection and culling */
 
 #if defined(HALO_WINDOWS) || defined(HALO_ANDROID) || defined(__linux__)
 #define HALO_NATIVE_BUILD_INFO 1
@@ -1155,6 +1162,7 @@ void set_window_camera_values(
 		window->rasterizer_camera.position = observer->position;
 		window->rasterizer_camera.forward = observer->forward;
 		window->rasterizer_camera.up = observer->up;
+		/* port: display.fov's view, the local render view only (view_fov.c) */
 		window->rasterizer_camera.vertical_field_of_view =
 			render_fov_vertical(window->local_player_index, 2.0f * arctangent(
 				0.75f * render_camera_get_adjusted_field_of_view_tangent(
@@ -1444,6 +1452,16 @@ short main_get_window_count(
 
 	return single_window ? 1 : PIN(local_player_count(), 1, MAXIMUM_WINDOWS);
 }
+
+#ifdef HALO_PROFILE
+/* port: whether the main menu's map is the one loaded (profile_console.c: a
+recording of debug.profile_record_when = "game" waits for another) */
+boolean main_menu_is_loaded(
+	void)
+{
+	return main_globals.main_menu_scenario_loaded;
+}
+#endif
 
 static void main_new_map(
 	struct game_options *options)
@@ -2369,6 +2387,10 @@ void main_set_map_name(
 static void main_exit(
 	void)
 {
+#ifdef HALO_PROFILE
+	/* port: the profiling build's recording written out before the game goes */
+	profile_trace_shutdown();
+#endif
 	switch (main_globals.connection)
 	{
 	case _game_connection_network_server:
@@ -3080,6 +3102,13 @@ void halt_and_catch_fire(
 	char label[96];
 	#endif
 
+#ifdef HALO_WEB
+	/* port: a browser shows only what a frame of its own main loop drew, and
+	this screen never returns to it: the game stops, and the page shows the
+	error from the log, where it already is (port/web/README.md) */
+	emscripten_cancel_main_loop();
+	abort();
+#endif
 	if (!global_screenshot_count.halt_recursion_lock)
 	{
 		scenario = global_scenario_try_and_get();
@@ -3317,11 +3346,42 @@ static void main_game_render(
 	return;
 }
 
+/* port: the main loop's steps, timed in the profiling build */
+PROFILE_SECTION(main_input_section, "input")
+PROFILE_SECTION(main_platform_events_section, "platform_events")
+PROFILE_SECTION(main_network_start_frame_section, "network_start_frame")
+PROFILE_SECTION(main_update_time_section, "main_update_time")
+PROFILE_SECTION(main_ui_update_section, "ui_update")
+PROFILE_SECTION(main_network_end_frame_section, "network_end_frame")
+PROFILE_SECTION(main_game_time_update_section, "game_time_update")
+PROFILE_SECTION(main_non_deterministic_update_section, "non_deterministic_update")
+PROFILE_SECTION(main_throttle_section, "throttle")
+PROFILE_SECTION(main_present_section, "present")
+
+#ifdef HALO_WEB
+/* port: in a browser, the page's frames call the main loop one iteration at a
+time, and what an iteration drew shows once it returns (port/web/README.md) */
+static boolean main_loop_iteration(void);
+
+static void main_loop_web_frame(
+	void)
+{
+	if (!main_loop_iteration())
+	{
+		emscripten_cancel_main_loop();
+		error(_error_silent, "end of saved film");
+		main_exit();
+	}
+}
+#endif
+
 void main_loop(
 	void)
 {
+#ifndef HALO_WEB
 	boolean render_frame;
 	long connection;
+#endif
 
 	if (!game_in_editor())
 	{
@@ -3340,7 +3400,20 @@ void main_loop(
 	main_setup_connection();
 	main_initialize_time();
 
+#ifdef HALO_WEB
+	emscripten_set_main_loop(main_loop_web_frame, 0, TRUE);
+}
+
+static boolean main_loop_iteration(
+	void)
+{
+	boolean render_frame;
+	long connection;
+
+	do
+#else
 	while (TRUE)
+#endif
 	{
 		if (!game_in_editor())
 		{
@@ -3430,12 +3503,16 @@ void main_loop(
 		}
 
 		profile_frame_start();
+		profile_scope_enter(main_input_section)
 		input_frame_begin();
 		input_update();
 		input_abstraction_update();
+		profile_scope_exit(main_input_section)
+		profile_scope_enter(main_platform_events_section)
 		shell_idle();
 		event_manager_update();
 		telnet_console_process();
+		profile_scope_exit(main_platform_events_section)
 
 		if (!shell_application_is_paused())
 		{
@@ -3449,6 +3526,7 @@ void main_loop(
 			network_aim_assist_update();
 			network_social_update();
 			network_spray_update();
+			profile_scope_enter(main_network_start_frame_section)
 			connection = main_globals.connection;
 			if (connection==_game_connection_network_client)
 			{
@@ -3476,12 +3554,16 @@ void main_loop(
 			}
 			else if (connection==_game_connection_film_playback)
 			{
+				profile_scope_exit(main_network_start_frame_section)
 				break;
 			}
+			profile_scope_exit(main_network_start_frame_section)
 
-			main_update_time();
+			profile_scope(main_update_time_section, main_update_time();)
+			profile_scope_enter(main_ui_update_section)
 			process_ui_widgets();
 			bink_playback_update();
+			profile_scope_exit(main_ui_update_section)
 
 			/* port: not the Xbox debug keyboard's End and Escape, which stop
 			the movie and restart the map: this keyboard reaches the game only
@@ -3512,13 +3594,16 @@ void main_loop(
 					player_control_update((real)main_globals.halt_time_scale*main_globals.seconds_elapsed);
 
 					connection = main_globals.connection;
+					profile_scope_enter(main_network_end_frame_section)
 					if (connection>_game_connection_local && connection<=_game_connection_network_server && !network_game_client_end_frame())
 					{
 						display_error_when_main_menu_loaded(1);
 						network_game_abort();
 					}
+					profile_scope_exit(main_network_end_frame_section)
 
-					game_time_update((real)main_globals.halt_time_scale*main_globals.seconds_elapsed);
+					profile_scope(main_game_time_update_section,
+						game_time_update((real)main_globals.halt_time_scale*main_globals.seconds_elapsed);)
 
 					render_frame = main_globals.main_menu_scenario_loaded ||
 						(main_globals.halt_time_scale &&
@@ -3528,11 +3613,13 @@ void main_loop(
 						render_frame = main_globals.main_menu_scenario_loaded || main_globals.halt_time_scale;
 					render_frame &= !game_engine_running() || game_time_get()>=3;
 
+					profile_scope_enter(main_non_deterministic_update_section)
 					collision_log_continue_period(1);
 					director_update((real)main_globals.halt_time_scale*main_globals.seconds_elapsed);
 					observer_update((real)main_globals.halt_time_scale*main_globals.seconds_elapsed);
 					collision_log_end_period();
 					game_engine_update_non_deterministic((real)main_globals.halt_time_scale*main_globals.seconds_elapsed);
+					profile_scope_exit(main_non_deterministic_update_section)
 				}
 
 				if (main_globals.saving_map)
@@ -3556,11 +3643,11 @@ void main_loop(
 				profile_render_end();
 			}
 
-			main_rasterizer_throttle();
+			profile_scope(main_throttle_section, main_rasterizer_throttle();)
 
 			if (render_frame && !debug_no_drawing)
 			{
-				main_present_frame();
+				profile_scope(main_present_section, main_present_frame();)
 			}
 		}
 
@@ -3574,12 +3661,21 @@ void main_loop(
 			main_reset_time();
 			main_globals.halt_time_scale = TRUE;
 		}
+#ifdef HALO_WEB
+		return TRUE;
+#endif
 	}
+#ifdef HALO_WEB
+	while (FALSE);
+	/* (a film played to its end) */
+	return FALSE;
+#else
 
 	error(_error_silent, "end of saved film");
 	main_exit();
 
 	return;
+#endif
 }
 
 /* ---------- private code */

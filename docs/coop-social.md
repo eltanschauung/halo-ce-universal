@@ -58,10 +58,16 @@ host-authoritative, reset per map/player generation, persist through checkpoint
 reverts, and replicate at most once per second. They are separate from campaign
 checkpoint data and existing multiplayer game-mode scores.
 
-The core network version and existing message IDs are unchanged. Older peers can
-join and ignore the optional new messages; they need this build to display its
-chat, killfeed and co-op score or send the new requests. The host alone selects
-the chain-damage policy, and authoritative damage still reaches older clients.
+The host's Player Options include **Aim Assist**: Allowed keeps the local
+preference; Block M+KB disables optional mouse magnetism while mouse/keyboard
+is the aiming device. Controller and touch retain their usual behavior.
+The preference is not overwritten. Host changes and late joins receive a
+validated reliable policy message; a joining client waits for that policy.
+
+These additions use network version 27. Peers on upstream version 26 cannot
+join this build. The self-kill request carries both full player and current-unit
+handles over the authenticated reliable stream. The killfeed itself uses the
+existing reliable notice channel, with the same printable-name limitations.
 
 ## Validation
 
