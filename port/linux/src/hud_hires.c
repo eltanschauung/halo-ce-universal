@@ -162,7 +162,7 @@ int hud_hires_sprites_drawable(long asset, unsigned long address, unsigned long 
 		}
 		return 0;
 	}
-	return hud_hires_override_texture(asset, &levels) != 0;
+	return hud_hires_override_texture(asset, (const unsigned char *)address, &levels) != 0;
 }
 
 /* the placeholder the game draws the texture's sprites from: its D3D
@@ -189,7 +189,7 @@ unsigned int hud_hires_placeholder_texture(unsigned long data, unsigned long *le
 	for (index = 0; data && index < placeholder_count; index++)
 	{
 		if (placeholders[index].data == data)
-			return hud_hires_override_texture(placeholders[index].asset, levels);
+			return hud_hires_override_texture(placeholders[index].asset, NULL, levels);
 	}
 	return 0;
 }
