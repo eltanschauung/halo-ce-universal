@@ -61,6 +61,7 @@ symbols in this file:
 #include "game/game_globals.h"
 #include "game/players.h"
 #include "interface/hud_draw.h"
+#include "needler_hud.h" /* port: the optional 30-round Needler meter */
 #include "interface/hud.h"
 #include "interface/hud_definitions.h"
 #include "interface/hud_weapon.h"
@@ -1794,15 +1795,21 @@ static void render_weapon_hud(
 
 			state_index = element->header.state_type;
 			value = (byte)number_values[state_index];
-			hud_draw_meter(
-				local_player_index,
-				&definition->absolute_placement,
-				&element->meter_element,
-				value,
-				value,
-				state_flags[state_index],
-				(real)hud_state->last_weapon_flash_time[state_index],
-				0.0f);
+			/* port: only the rebalance's loaded-ammo meter gets thirty slots. */
+			if (!needler_hud_draw(weapon_definition, state_index, local_player_index,
+				&definition->absolute_placement, &element->meter_element, number_values[state_index],
+				state_flags[state_index], (real)hud_state->last_weapon_flash_time[state_index]))
+			{
+				hud_draw_meter(
+					local_player_index,
+					&definition->absolute_placement,
+					&element->meter_element,
+					value,
+					value,
+					state_flags[state_index],
+					(real)hud_state->last_weapon_flash_time[state_index],
+					0.0f);
+			}
 			if (zoomed_layout)
 				hud_zoomed_layout_end(&window_bounds);
 		}

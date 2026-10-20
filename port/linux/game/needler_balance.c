@@ -14,6 +14,7 @@ whole game stock; an upstream host never receives a fork rules message. */
 #include "network_distributed.h"
 #include "network_extensions.h"
 #include "needler_balance.h"
+#include "needler_hud.h"
 #include <string.h>
 
 unsigned long system_milliseconds(void);
@@ -90,6 +91,7 @@ void needler_balance_tags_loaded(void)
     {
         "weapons\\needler\\explosion", "weapons\\needler\\shock wave"
     };
+    needler_hud_unloaded();
     memset(&needler_balance, 0, sizeof(needler_balance));
     needler_balance.sent_policy = NONE;
     needler_balance.weapon_index = tag_loaded(WEAPON_DEFINITION_TAG, "weapons\\needler\\needler");
@@ -119,10 +121,12 @@ void needler_balance_tags_loaded(void)
     needler_balance.initial_velocity = needler_balance.needle->projectile.initial_velocity;
     needler_balance.final_velocity = needler_balance.needle->projectile.final_velocity;
     needler_balance.turning = needler_balance.needle->projectile.guided_angular_velocity;
+    needler_hud_loaded();
 }
 
 void needler_balance_tags_unloaded(void)
 {
+    needler_hud_unloaded();
     /* No cached pointers may survive the map's tag allocation. */
     memset(&needler_balance, 0, sizeof(needler_balance));
     needler_balance.sent_policy = NONE;
@@ -174,4 +178,11 @@ void needler_balance_handle(long machine, word const *data, word size, boolean r
         message.header.type != _distributed_message_needler_policy || message.enabled > 1 || message.reserved) return;
     needler_balance.client_enabled = message.enabled != 0;
     needler_balance_update();
+}
+
+/* The cosmetic follows the exact policy that changes magazine capacity. */
+boolean needler_balance_hud_active(struct weapon_definition const *definition)
+{
+    return needler_balance.enabled && needler_balance.magazine &&
+        definition == weapon_definition_get(needler_balance.weapon_index);
 }

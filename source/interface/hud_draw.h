@@ -120,6 +120,19 @@ void hud_draw_meter(
 	short draw_flags,
 	real reference_time,
 	real reference_value);
+/* port: same meter pipeline, with a caller-owned bitmap and clip. */
+void hud_draw_meter_bitmap(
+	short local_player_index,
+	struct hud_absolute_placement_definition const *absolute_placement,
+	struct meter_hud_element_definition const *meter,
+	byte min_value,
+	byte max_value,
+	short draw_flags,
+	real reference_time,
+	real reference_value,
+	struct bitmap_data const *bitmap,
+	real_rectangle2d const *clip,
+	boolean is_interface_bitmap);
 void hud_draw_static_element(
 	short local_player_index,
 	struct hud_absolute_placement_definition const *placement,

@@ -1882,27 +1882,42 @@ void hud_draw_meter(
 	real reference_time,
 	real reference_value)
 {
+	struct bitmap_group const *group = bitmap_group_get(verify_tag_reference(&meter->meter_bitmap));
+	struct bitmap_data const *bitmap = bitmap_group_get_bitmap_from_sequence(
+		meter->meter_bitmap.index, meter->sequence_index, 0);
+	real_rectangle2d const *clip;
+
+	if (!bitmap)
+		return;
+	clip = get_sprite_clip_rect(meter->meter_bitmap.index, meter->sequence_index, 0);
+
+	/* port: share the original color, flash and placement pipeline with
+	cosmetic meters whose bitmap is supplied in memory. */
+	hud_draw_meter_bitmap(local_player_index, absolute_placement, meter, min_value, max_value,
+		draw_flags, reference_time, reference_value, bitmap, clip,
+		group->type == _bitmap_group_type_interface_bitmaps);
+}
+
+void hud_draw_meter_bitmap(
+	short local_player_index,
+	struct hud_absolute_placement_definition const *absolute_placement,
+	struct meter_hud_element_definition const *meter,
+	byte min_value,
+	byte max_value,
+	short draw_flags,
+	real reference_time,
+	real reference_value,
+	struct bitmap_data const *bitmap,
+	real_rectangle2d const *clip,
+	boolean is_interface_bitmap)
+{
 	long return_eip = get_return_eip();
 	long stack_buffer[STACK_BUFFER_LENGTH];
-	struct bitmap_group *bitmap_group;
-	struct bitmap_data *bitmap;
 
 	csmemset(stack_buffer, 0x62, sizeof(stack_buffer));
 
-	bitmap_group = bitmap_group_get(
-		verify_tag_reference(&meter->meter_bitmap));
-	bitmap = bitmap_group_get_bitmap_from_sequence(
-		meter->meter_bitmap.index,
-		meter->sequence_index,
-		0);
 	if (_texture_cache_bitmap_get_hardware_format(bitmap, FALSE, TRUE))
 	{
-		real_rectangle2d const *clip = get_sprite_clip_rect(
-			verify_tag_reference(&meter->meter_bitmap),
-			meter->sequence_index,
-			0);
-		boolean is_interface_bitmap =
-			bitmap_group->type == _bitmap_group_type_interface_bitmaps;
 		short min_alpha = MAX(meter->minimum_value,
 			PIN(fast_ftol_C(meter->alpha_multiplier*min_value + meter->alpha_bias), 0, UNSIGNED_CHAR_MAX));
 		short max_alpha = MAX(meter->minimum_value,

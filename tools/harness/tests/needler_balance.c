@@ -44,6 +44,8 @@ static long tag_loaded(int group,char const *name){long n=group==WEAPON_DEFINITI
 #define damage_effect_definition_get(i) (&damage[(i)-2])
 static void object_iterator_new(struct object_iterator *i,unsigned long f,byte b){i->next=0;}
 static void *object_iterator_next(struct object_iterator *i){return i->next<2?&weapons[i->next++]:NULL;}
+static void needler_hud_loaded(void) {}
+static void needler_hud_unloaded(void) {}
 #include "under_test.inc"
 enum {_magazine_unchambered};
 static struct {boolean infinite_ammo;}cheat;
@@ -92,6 +94,7 @@ static void combine(int count,long definition_index)
  CHECK(detonated==(count>=(needler_balance.enabled&&definition_index==1?8:7)),"detonate threshold %d",count);
 }
 static void check_enabled(void){
+ CHECK(needler_balance_hud_active(&gun),"HUD not following enabled rules");
  CHECK(magazine.rounds_loaded_maximum==30&&magazine.rounds_reloaded==30,"magazine/reload");
  CHECK(trigger.final_rate_of_fire==7.5f&&trigger.projectile_error_inner_cone_angle==0,"rate/inner cone");
  CHECK(fabsf(trigger.projectile_error_angle_lower_bound-DEGREES_TO_RADIANS(.5f))<1e-6f&&fabsf(trigger.projectile_error_angle_upper_bound-DEGREES_TO_RADIANS(1.5f))<1e-6f,"spread");
@@ -119,7 +122,9 @@ int main(int argc,char **argv)
  }
  else if(!strcmp(case_name,"mixed")){
   role=2;matching=FALSE;allowed=1;needler_balance_update();CHECK(!needler_balance.enabled,"upstream peer");
+  CHECK(!needler_balance_hud_active(&gun),"rebalance HUD in mixed lobby");
   matching=TRUE;needler_balance_update();check_enabled();matching=FALSE;needler_balance_update();CHECK(!needler_balance.enabled&&magazine.rounds_loaded_maximum==20,"late upstream join");
+  CHECK(!needler_balance_hud_active(&gun),"late join kept rebalance HUD");
  }
  else if(!strcmp(case_name,"upstream-host")){role=1;allowed=FALSE;needler_balance_update();CHECK(!needler_balance.enabled&&!sends,"changed upstream host rules");}
  else if(!strcmp(case_name,"policy")||!strcmp(case_name,"bad-policy")){
@@ -134,6 +139,7 @@ int main(int argc,char **argv)
  }
  else if(!strcmp(case_name,"reload-map")){
   needler_balance_tags_unloaded();role=1;needler_balance_reset();CHECK(!needler_balance.magazine,"stale tag pointer");
+  CHECK(!needler_balance_hud_active(&gun),"HUD survived map unload");
   magazine=before_mag;trigger=before_trigger;needle=before_needle;memcpy(damage,before_damage,sizeof(damage));
   needler_balance_tags_loaded();role=0;needler_balance_reset();check_enabled();
  }

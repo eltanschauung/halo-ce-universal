@@ -1730,3 +1730,19 @@ without that pack, with invalid files, or without model support displays Chief.
 Packs are not downloaded. Core upstream protocol 29 and core packet layouts stay
 unchanged. Older fork peers negotiate their original feature set; upstream peers
 receive no model messages. A stock upstream host does not relay model selections.
+
+
+## Fork Needler ammunition display
+
+While the fork's 30-round Needler rules are active, its stock loaded-ammunition
+meter has 30 needle segments in the original HUD rectangle. Each shot removes
+one lit segment. The meter keeps the map's colors, empty-segment color,
+low-ammunition flashes, opacity and split-screen placement. It works with the
+high-resolution HUD enabled or disabled. Other weapons and custom meter
+layouts keep their authored displays.
+
+The display follows the existing Needler policy: solo and matching fork
+lobbies use 30; an upstream host or a mixed lobby uses stock weapon rules and
+the original HUD. No HUD messages or map-file changes are needed. All 31
+ammunition images are prepared when the map loads and released when it
+unloads, with one ordinary meter draw and no image construction per frame.
