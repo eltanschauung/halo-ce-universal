@@ -21,12 +21,12 @@
 #include <string.h>
 #include <math.h>
 
-/* Allow the bundled desktop catalogue to coexist without raising the
+/* Allow 4K textures in the desktop catalogue without raising the
    memory allowance of the mobile and browser ports. */
 #if defined(HALO_ANDROID) || defined(HALO_WEB)
 #define CUSTOM_MODEL_MEMORY_BUDGET 0x8000000UL
 #else
-#define CUSTOM_MODEL_MEMORY_BUDGET 0xC000000UL
+#define CUSTOM_MODEL_MEMORY_BUDGET 0x30000000UL
 #endif
 
 void *cache_files_tag_instances(long *count);

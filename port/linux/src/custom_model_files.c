@@ -147,7 +147,7 @@ static int custom_bmp_dimensions(void const *data,unsigned int size,int *width,i
     if((header!=40 && header!=52 && header!=56 && header!=108 && header!=124) || header>size-14)return 0;
     w=custom_image_u32(p+18);h=custom_image_u32(p+22);if(h&0x80000000u)h=0u-h;
     bits=custom_image_u32(p+28)&65535u;compression=custom_image_u32(p+30);
-    if(w<1 || w>2048 || h<1 || h>2048 || p[26]!=1 || p[27] ||
+    if(w<1 || w>HALO_CUSTOM_IMAGE_DIMENSION || h<1 || h>HALO_CUSTOM_IMAGE_DIMENSION || p[26]!=1 || p[27] ||
         (bits!=8 && bits!=24 && bits!=32) || (compression!=0 && !(compression==3 && bits==32)))return 0;
     end=14+header;
     if(compression==3 && header==40)end+=12;
@@ -163,19 +163,19 @@ static int custom_image_load_path(char *path,int kind,struct halo_custom_image *
     unsigned char *pixels;
     int width,height,channels,w,h,x,y;
     memset(image,0,sizeof(*image));
-    data=read_bounded(path,16u*1024u*1024u,&size);
+    data=read_bounded(path,HALO_CUSTOM_IMAGE_BYTES,&size);
     /* PNG takes precedence; BMP is the fallback for a missing texture. */
     if (!data && kind!=0)
     {
         memcpy(path+strlen(path)-3,"bmp",4);
-        data=read_bounded(path,16u*1024u*1024u,&size);
+        data=read_bounded(path,HALO_CUSTOM_IMAGE_BYTES,&size);
     }
     if (!data) return 0;
     if (size>=2 && !memcmp(data,"BM",2))
     { if(!custom_bmp_dimensions(data,size,&width,&height)){free(data);return 0;} }
     else if(size<8 || memcmp(data,"\x89PNG\r\n\x1a\n",8) || !stbi_info_from_memory(data,size,&width,&height,&channels))
     {free(data);return 0;}
-    if(width<1 || height<1 || width>2048 || height>2048 || (kind==0 && height!=width*2)){free(data);return 0;}
+    if(width<1 || height<1 || width>HALO_CUSTOM_IMAGE_DIMENSION || height>HALO_CUSTOM_IMAGE_DIMENSION || (kind==0 && height!=width*2)){free(data);return 0;}
     pixels=stbi_load_from_memory(data,size,&width,&height,&channels,4); free(data);
     if (!pixels) return 0;
     w=kind==0 ? 128 : 1; h=kind==0 ? 256 : 1;

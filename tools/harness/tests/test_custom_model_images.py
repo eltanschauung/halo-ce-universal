@@ -93,3 +93,27 @@ def test_preview_does_not_use_other_filenames(tmp_path):
     (folder/'old_portrait.png').write_bytes(png(2,4,(1,2,3,255)))
     (folder/'preview.bmp').write_bytes(bmp(2,4,24)[0])
     assert subprocess.run([str(executable()),str(tmp_path),'0'],capture_output=True).returncode==1
+
+@pytest.mark.parametrize('extension',['png','bmp'])
+def test_4k_material_texture(tmp_path,extension):
+    folder=tmp_path/'model/textures';folder.mkdir(parents=True)
+    pixel=(12,34,56,255);width=height=4096
+    if extension=='png':data=png(width,height,pixel)
+    else:
+        row=bytes((pixel[2],pixel[1],pixel[0],pixel[3]))*width
+        payload=row*height
+        data=b'BM'+struct.pack('<IHHI',54+len(payload),0,0,54)+struct.pack('<IiiHHIIiiII',40,width,height,1,32,0,len(payload),0,0,0,0)+payload
+    (folder/('armor.'+extension)).write_bytes(data)
+    result=subprocess.run([str(executable()),str(tmp_path),'1'],capture_output=True,text=True)
+    assert result.returncode==0,result.stderr
+    assert result.stdout.split()==['4096','4096']+['ff0c2238']*3
+
+@pytest.mark.parametrize('width,height',[(4097,1),(1,4097),(4097,4097)])
+def test_texture_dimension_limit(tmp_path,width,height):
+    folder=tmp_path/'model/textures';folder.mkdir(parents=True)
+    # The header alone is sufficient for the dimension guard; no large decode.
+    data=png(1,1,(1,2,3,255))
+    header=struct.pack('>IIBBBBB',width,height,8,6,0,0,0)
+    data=data[:16]+header+struct.pack('>I',zlib.crc32(b'IHDR'+header)&0xffffffff)+data[33:]
+    (folder/'armor.png').write_bytes(data)
+    assert subprocess.run([str(executable()),str(tmp_path),'1'],capture_output=True).returncode==1
