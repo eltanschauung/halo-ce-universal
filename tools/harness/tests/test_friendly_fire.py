@@ -12,13 +12,15 @@ def generated(fault=None):
     header = read('source/game/game_engine.h')
     policy = function(read('source/game/game_engine.c'), 'game_engine_friendly_damage')
     damage = function(read('source/objects/damage.c'), 'object_cause_damage')
-    block = damage[damage.index('friendly_damage_scale *= network_social_chain_damage_scale'):damage.index('if (!material_effect_recorded &&')]
+    block = damage[damage.index('reduced_instant_damage = friendly_damage =='):damage.index('if (!material_effect_recorded &&')]
     if fault == 'no-reduction':
         policy = mutated(policy, '*damage_scale = 0.5f;', '*damage_scale = 1.f;')
     if fault == 'double-reduction':
-        block = mutated(block, 'object_total_damage, friendly_damage_scale == 1.f', 'object_total_damage * friendly_damage_scale, friendly_damage_scale == 1.f')
+        block = mutated(block, 'object_total_damage,\n', 'object_total_damage * friendly_damage_scale,\n')
     if fault == 'instant-kill':
         block = mutated(block, ' && friendly_damage_scale == 1.f', '')
+    if fault == 'no-partial-instant':
+        block = mutated(block, 'force_kill && reduced_instant_damage > 0.f);', 'FALSE);')
     if fault == 'parent-reduction':
         block = mutated(block, 'object_total_damage / object_damage_scale;', 'object_total_damage;')
     if fault == 'enemy-double-reduction':
@@ -36,7 +38,7 @@ def test_case(case):
 
 @pytest.mark.parametrize('fault,case', [('no-reduction','policy'), ('double-reduction','damage'),
                                        ('instant-kill','instant'), ('parent-reduction','parent'),
-                                       ('enemy-double-reduction','enemy-health')])
+                                       ('enemy-double-reduction','enemy-health'), ('no-partial-instant','instant')])
 def test_negative(fault, case):
     status, output = run(build('friendly_fire', generated(fault)), case)
     assert status == CHECK_FAILED, output

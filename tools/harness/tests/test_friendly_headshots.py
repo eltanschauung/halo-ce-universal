@@ -1,4 +1,4 @@
-"""Production instant-headshot branch with the reduced-friendly admission flag."""
+"""Production instant-damage conversion and exact-zero death boundary."""
 import sys
 from pathlib import Path
 import pytest
@@ -7,11 +7,13 @@ from harness import build,read,function,run,mutated,CHECK_FAILED
 
 def generated(fault=False):
     source=function(read('source/objects/damage.c'),'object_damage_body')
-    start=source.index('if (damage_amount > 0.f && TEST_FLAG')
+    start=source.index('if (force_instant_damage)')
     end=source.index('\n\t\tobject->object.body_vitality -= actual_damage;',start)
     code=source[start:end]
-    if fault:code=mutated(code,'allow_instant_kill && ','')
-    return (('under_test.inc',code),)
+    if fault:code=mutated(code,'if (instant_kill_scale < 1.f)','if (FALSE)')
+    death=next(line for line in source.splitlines() if 'else if (body_vitality < 0.f ||' in line)
+    condition=death.split('else if (',1)[1].split(') /* port:',1)[0]
+    return (('under_test.inc',code),('lethal.inc','last_lethal = ('+condition+');'))
 
 @pytest.mark.parametrize('fault',[False,True])
 def test_headshot(fault):

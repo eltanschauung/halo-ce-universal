@@ -38,6 +38,8 @@ static void *object_normal;
 static real shield_available, dealt_shield, dealt_body;
 static int depleted;
 static boolean body_allows_instant_kill;
+static real body_instant_scale;
+static boolean body_force_instant;
 static real chain_scale=1;
 static real enemy_scale=1;
 static real network_social_chain_damage_scale(struct data *damage,long index){return chain_scale;}
@@ -47,12 +49,12 @@ static void object_damage_shield(long i, struct resistance *r, void *m, struct d
  struct data *hit, unsigned long *flags, real *shield, real *total)
 { *shield = *total < shield_available ? *total : shield_available; *total -= *shield; dealt_shield += *shield; }
 static void object_damage_body(long i, long region, long node, void *normal, struct resistance *r,
- void *m, struct definition *d, struct data *hit, unsigned long *flags, real *body, real *multiplier, real total, boolean allow_instant_kill)
-{ *body = total; dealt_body += total; body_allows_instant_kill = allow_instant_kill; }
+ void *m, struct definition *d, struct data *hit, unsigned long *flags, real *body, real *multiplier, real total, real instant_kill_scale, boolean force_instant_damage)
+{ *body = total; dealt_body += total; body_allows_instant_kill = instant_kill_scale == 1.f; body_instant_scale=instant_kill_scale; body_force_instant=force_instant_damage; }
 static real dispatch(short friendly_damage, real friendly_damage_scale, real total_damage,
  boolean force_kill, boolean distributed_damage_authorized, short damaged_object_count)
 {
- real object_total_damage, object_damage_scale, shield_damage=0, body_damage=0, body_damage_multiplier=0;
+ real object_total_damage, object_damage_scale, reduced_instant_damage, shield_damage=0, body_damage=0, body_damage_multiplier=0;
  long current_object_index=20, region_index=NONE, node_index=NONE;
  unsigned long being_damaged_flags=0;
  boolean parent_takes_body_damage=TRUE;
@@ -65,6 +67,7 @@ static void reset(void)
  memset(&definition,0,sizeof(definition)); memset(&data,0,sizeof(data));
  obj.object.maximum_shield_vitality=1; obj.object.body_vitality=1;
  dealt_body=dealt_shield=0; depleted=0; shield_available=20;
+ body_instant_scale=0;body_force_instant=FALSE;
 }
 static int policy(void)
 {
@@ -140,7 +143,11 @@ int main(int argc,char **argv)
   CHECK(dispatch(_friendly_damage_all,.5f,100,FALSE,FALSE,1)==60, "friendly fire regression at line %d", __LINE__); CHECK(dealt_shield==20 && dealt_body==0, "friendly fire regression at line %d", __LINE__);
   shield_available=0; dispatch(_friendly_damage_all,.5f,60,FALSE,FALSE,0); CHECK(dealt_body==30, "friendly fire regression at line %d", __LINE__); return 0;
  }
- if (!strcmp(argv[1],"instant")) { reset(); dispatch(_friendly_damage_all,.5f,100,TRUE,FALSE,0);CHECK(depleted==0 && obj.object.body_vitality==1, "friendly fire regression at line %d", __LINE__);
+ if (!strcmp(argv[1],"instant")) { reset(); dispatch(_friendly_damage_all,.5f,100,TRUE,FALSE,0);CHECK(depleted==0 && body_force_instant && body_instant_scale==.5f && dealt_shield==0, "friendly fire regression at line %d", __LINE__);
+  reset();dispatch(_friendly_damage_all,.25f,100,TRUE,FALSE,0);CHECK(body_force_instant&&body_instant_scale==.25f&&dealt_shield==0,"quarter-health instant kill");
+  reset();dispatch(_friendly_damage_none,1,100,TRUE,FALSE,0);CHECK(!depleted&&!body_force_instant&&!dealt_body&&!dealt_shield,"Off changed");
+  reset();chain_scale=.5f;dispatch(_friendly_damage_all,.5f,100,TRUE,FALSE,0);CHECK(body_force_instant&&body_instant_scale==.25f,"chain scale lost");chain_scale=1;
+  reset();chain_scale=.5f;dispatch(_friendly_damage_all,1,100,TRUE,FALSE,0);CHECK(!body_force_instant&&!body_instant_scale,"chain-only instant behavior changed");chain_scale=1;
   reset(); dispatch(_friendly_damage_all,1,100,TRUE,FALSE,0);CHECK(depleted==1, "friendly fire regression at line %d", __LINE__);
   reset(); dispatch(_friendly_damage_all,.25f,100,TRUE,TRUE,0);CHECK(depleted==1, "friendly fire regression at line %d", __LINE__);return 0;
  }

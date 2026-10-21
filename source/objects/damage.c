@@ -1170,7 +1170,8 @@ static void object_damage_body(
 	real *body_damage,
 	real *body_damage_multiplier,
 	real total_damage,
-	boolean allow_instant_kill)
+	real instant_kill_scale, /* port: fractional friendly instant kills */
+	boolean force_instant_damage)
 {
 	struct object_datum *object = object_get(object_index);
 	real damage_amount = damage_material->body_damage_multiplier*total_damage;
@@ -1178,6 +1179,7 @@ static void object_damage_body(
 	real maximum_body_vitality;
 	real inverse_maximum_body_vitality;
 	real actual_damage;
+	real partial_instant_damage = 0.f; /* port: normalized health */
 
 	if (TEST_FLAG(damage_resistance->flags, _damage_resistance_only_hurt_while_occupied_bit) &&
 		object->object.type == _object_type_vehicle &&
@@ -1231,18 +1233,27 @@ static void object_damage_body(
 
 	if (!TEST_FLAG(object->object.damage_flags, _object_cannot_take_damage_bit))
 	{
+		if (force_instant_damage) /* port: respect invulnerability before applying the fraction */
+			partial_instant_damage = instant_kill_scale;
 		if (damage_amount > 0.f && TEST_FLAG(damage_material->flags, _damage_material_head_bit))
 		{
-			if (allow_instant_kill && TEST_FLAG(damage_definition->flags, _damage_can_cause_headshots_bit))
+			if (instant_kill_scale > 0.f && TEST_FLAG(damage_definition->flags, _damage_can_cause_headshots_bit))
 			{
 				if (game_engine_running() ||
 					object->object.type != _object_type_biped ||
 					unit_get(object_index)->unit.player_index == NONE)
 				{
-					object->object.body_vitality = 0.f;
-					SET_FLAG(*being_damaged_flags, _object_being_damaged_killed_instantly_bit, TRUE);
-					if (game_engine_running())
-						SET_FLAG(*being_damaged_flags, _object_being_damaged_force_hard_ping_bit, TRUE);
+					/* port: a reduced friendly headshot takes a fraction of maximum
+					health; ordinary enemy and full-damage headshots keep their kill. */
+					if (instant_kill_scale < 1.f)
+						partial_instant_damage = instant_kill_scale;
+					else
+					{
+						object->object.body_vitality = 0.f;
+						SET_FLAG(*being_damaged_flags, _object_being_damaged_killed_instantly_bit, TRUE);
+						if (game_engine_running())
+							SET_FLAG(*being_damaged_flags, _object_being_damaged_force_hard_ping_bit, TRUE);
+					}
 				}
 			}
 			else if (TEST_FLAG(damage_definition->flags, _damage_can_cause_multiplayer_headshots_bit) &&
@@ -1254,6 +1265,13 @@ static void object_damage_body(
 			}
 		}
 
+		/* port: replace the weapon's numeric damage, rather than adding it
+		on top of the partial instant kill. Shield processing stays separate. */
+		if (partial_instant_damage > 0.f)
+		{
+			actual_damage = partial_instant_damage;
+			damage_amount = maximum_body_vitality * actual_damage;
+		}
 		object->object.body_vitality -= actual_damage;
 	}
 
@@ -1347,7 +1365,7 @@ static void object_damage_body(
 				FLAG(_object_being_damaged_body_depleted_bit) |
 				FLAG(_object_being_damaged_body_destroyed_bit);
 		}
-		else if (body_vitality < 0.f)
+		else if (body_vitality < 0.f || (partial_instant_damage > 0.f && body_vitality == 0.f && !cheat.deathless_player)) /* port: two half-health hits kill */
 		{
 			if (!TEST_FLAG(object->object.damage_flags, _object_dead_bit))
 			{
@@ -1370,6 +1388,8 @@ static void object_damage_body(
 
 				object_deplete_body(object_index);
 				SET_FLAG(*being_damaged_flags, _object_being_damaged_body_depleted_bit, TRUE);
+				if (partial_instant_damage > 0.f) /* port: only an actual death is an instant kill */
+					SET_FLAG(*being_damaged_flags, _object_being_damaged_killed_instantly_bit, TRUE);
 			}
 		}
 		else if (body_vitality < damage_resistance->body_damaged_effect_threshold &&
@@ -1446,6 +1466,7 @@ void object_cause_damage(
 	real friendly_damage_scale;
 	real object_damage_scale; /* port: co-op enemy health, separate from friendly-fire kill rules */
 	real object_total_damage;
+	real reduced_instant_damage; /* port: only reduced friendly fire converts instant kills */
 
 	/* the distributed netcode (port/linux/NETCODE.md): the host deals
 	damage; a client reports its own players' hits instead, and the host
@@ -1783,7 +1804,12 @@ void object_cause_damage(
 
 				/* Scale once before shield absorption and health spillover. Keep
 				parent propagation in unscaled units: each object has its own rules. */
+				reduced_instant_damage = friendly_damage == _friendly_damage_all &&
+					friendly_damage_scale > 0.f && friendly_damage_scale < 1.f &&
+					!distributed_damage_authorized ? friendly_damage_scale : 0.f;
 				friendly_damage_scale *= network_social_chain_damage_scale(damage, current_object_index);
+				if (reduced_instant_damage > 0.f)
+					reduced_instant_damage = friendly_damage_scale;
 				/* port: scale player hits on enemies once, preserving headshots and instant kills. */
 				object_damage_scale = friendly_damage_scale * coop_enemy_damage_scale(damage, current_object_index);
 				object_total_damage = total_damage * object_damage_scale;
@@ -1810,6 +1836,7 @@ void object_cause_damage(
 				}
 
 				if (friendly_damage != _friendly_damage_none &&
+					!(force_kill && reduced_instant_damage > 0.f) && /* port: backsmacks bypass shields */
 					!TEST_FLAG(damage->flags, _damage_bypasses_shields_bit) &&
 					!TEST_FLAG(damage_definition->flags, _damage_skips_shields_bit) &&
 					current_object->object.maximum_shield_vitality > 0.f &&
@@ -1865,7 +1892,9 @@ void object_cause_damage(
 						&being_damaged_flags,
 						&body_damage,
 						&body_damage_multiplier,
-						object_total_damage, friendly_damage_scale == 1.f || distributed_damage_authorized);
+						object_total_damage,
+						friendly_damage_scale == 1.f || distributed_damage_authorized ? 1.f : reduced_instant_damage,
+						force_kill && reduced_instant_damage > 0.f);
 					damaged_object_count = 0;
 				}
 
