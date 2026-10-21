@@ -29,6 +29,8 @@ static void coop_vehicle_effects_handle(long i,word const *m,word n,boolean r){}
 static void coop_respawn_handle(long i,word const *m,word n,boolean r){}
 #define _distributed_message_needler_policy 253
 #define _distributed_message_assault_rifle_policy 254
+#define _distributed_message_grenade_collision_policy 249
+static void friendly_grenades_handle(long i, word const *m, word n, boolean r) {}
 static void assault_rifle_balance_handle(long i, word const *m, word n, boolean r) {}
 static void needler_balance_handle(long i, word const *m, word n, boolean r) {}
 #define csmemcpy memcpy
