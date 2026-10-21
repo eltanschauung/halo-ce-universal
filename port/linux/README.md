@@ -1650,8 +1650,10 @@ labels are normalized. Images may be PNGs or paletted 8-bit, RGB 24-bit or RGBA 
 resampled to power-of-two dimensions in memory. Assets are bounded by file,
 vertex, triangle and image limits. Textures may be up to 4096 x 4096, with
 a shared conservative residency allowance of 768 MiB on desktop and 128 MiB
-on Android/web. Encoded images are limited to 80 MiB, allowing uncompressed
-4096-square RGBA BMPs.
+on Android/web. Desktop Direct3D resources use a separate 1536 MiB virtual
+address window, committed only as used; the window remains 128 MiB on
+Android/web. A failed texture upload rejects the custom model. Encoded
+images are limited to 80 MiB, allowing uncompressed 4096-square RGBA BMPs.
 A source JMS may be up to 128 MiB and contain up to 512,000 exported vertices
 and 256,000 triangles. After parsing, byte-identical position, normal, UV and
 skin records share a vertex in memory; seams, skinning, triangle order and

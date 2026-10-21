@@ -12,7 +12,7 @@ writable again.
 
 /* the Xbox memory window (port/linux/src/platform.h: the desktop builds') */
 #define PLATFORM_CONTIGUOUS_BASE 0x80000000UL
-#define PLATFORM_CONTIGUOUS_SIZE 0x20000000UL
+#define PLATFORM_CONTIGUOUS_SIZE 0x60000000UL
 
 #define WATCH_PAGE_SIZE 0x1000UL
 #define WATCH_PAGE_COUNT (PLATFORM_CONTIGUOUS_SIZE / WATCH_PAGE_SIZE)
