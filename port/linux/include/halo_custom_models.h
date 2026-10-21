@@ -1,7 +1,11 @@
 /* Loose cosmetic models. This interface contains no platform-owned handles. */
 #ifndef HALO_CUSTOM_MODELS_H
 #define HALO_CUSTOM_MODELS_H
-enum { HALO_CUSTOM_MODELS = 64, HALO_CUSTOM_MODEL_ID = 32, HALO_CUSTOM_MODEL_NODES = 19, HALO_CUSTOM_MAX_NODES = 64, HALO_CUSTOM_MATERIALS = 32 };
+enum { HALO_CUSTOM_MODELS = 64, HALO_CUSTOM_MODEL_ID = 32, HALO_CUSTOM_MODEL_NODES = 19, HALO_CUSTOM_MAX_NODES = 64, HALO_CUSTOM_MATERIALS = 32,
+    HALO_CUSTOM_JMS_BYTES = 128*1024*1024, HALO_CUSTOM_VERTICES = 512000,
+    HALO_CUSTOM_TRIANGLES = 256000, HALO_CUSTOM_MATERIAL_VERTICES = 256000,
+    HALO_CUSTOM_CHUNK_TRIANGLES = 65535/3,
+    HALO_CUSTOM_PARTS = 32 /* native geometry part capacity */ };
 struct halo_custom_model_info { char id[32], name[96]; int colorable; char default_rgb[8]; };
 struct halo_custom_node { char name[32]; int child, sibling, parent; float rotation[4], translation[3]; };
 struct halo_custom_vertex { float position[3], normal[3], uv[2], weight; int node[2]; };
@@ -26,9 +30,11 @@ int halo_custom_models_count(void);
 struct halo_custom_model_info const *halo_custom_model_info(int index);
 int halo_custom_model_find(char const *id);
 int halo_custom_mesh_parse(char const *data, unsigned int size, struct halo_custom_mesh *mesh);
+int halo_custom_mesh_deduplicate(struct halo_custom_mesh *mesh);
 int halo_custom_mesh_load(int index, int first_person, struct halo_custom_mesh *mesh);
 void halo_custom_mesh_dispose(struct halo_custom_mesh *mesh);
 int halo_custom_texture_name_valid(char const *name);
+int halo_custom_mesh_chunk(struct halo_custom_mesh const *mesh,int first,int count,struct halo_custom_mesh *part);
 int halo_custom_mesh_material(struct halo_custom_mesh const *mesh,int material,struct halo_custom_mesh *part);
 int halo_custom_material_image_load(int index,char const *texture,int mask,struct halo_custom_image *image);
 int halo_custom_image_load(int index, int kind, struct halo_custom_image *image);

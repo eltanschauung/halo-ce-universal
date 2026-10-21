@@ -76,11 +76,11 @@ struct custom_asset
     struct halo_custom_matrix source_contact[4],target_contact_inverse[4];
     struct custom_shader shader[HALO_CUSTOM_MATERIALS];
     struct custom_shader_ref shader_ref[HALO_CUSTOM_MATERIALS];
-    struct custom_geometry geometry;struct custom_part parts[HALO_CUSTOM_MATERIALS];
+    struct custom_geometry geometry;struct custom_part parts[HALO_CUSTOM_PARTS];
     struct model_region region;struct model_region_permutation permutation;
     struct bitmap_group bitmap_groups[HALO_CUSTOM_MATERIALS][2];struct bitmap_group_sequence sequences[HALO_CUSTOM_MATERIALS][2];
     struct bitmap_data *bitmaps[HALO_CUSTOM_MATERIALS][2];
-    void *vertex_data[HALO_CUSTOM_MATERIALS],*index_data[HALO_CUSTOM_MATERIALS];
+    void *vertex_data[HALO_CUSTOM_PARTS],*index_data[HALO_CUSTOM_PARTS];
     char names[1+HALO_CUSTOM_MATERIALS*3][128],id[32];long tag;
     boolean first_person;
     short material_count;struct halo_custom_material materials[HALO_CUSTOM_MATERIALS];
@@ -381,16 +381,33 @@ static boolean geometry_part_make(struct custom_asset *asset,short slot,short sh
 }
 static boolean geometry_make(struct custom_asset *asset,struct halo_custom_mesh const *mesh)
 {
-    struct halo_custom_mesh part;
+    struct halo_custom_mesh part,chunk;
     short material,slot;
+    int first,count;
     asset->geometry.parts.address=asset->parts;
     for(material=0;material<mesh->material_count;material++)
     {
         if(!halo_custom_mesh_material(mesh,material,&part))return FALSE;
         if(!part.triangle_count){halo_custom_mesh_dispose(&part);continue;}
-        slot=(short)asset->geometry.parts.count++;
-        if(!geometry_part_make(asset,slot,material,&part))
-        {halo_custom_mesh_dispose(&part);return FALSE;}
+        for(first=0;first<part.triangle_count;first+=count)
+        {
+            struct halo_custom_mesh const *draw=&part;
+            count=part.triangle_count;
+            if(part.vertex_count>65535 || part.triangle_count>65535)
+            {
+                count=MIN(HALO_CUSTOM_CHUNK_TRIANGLES,part.triangle_count-first);
+                if(!halo_custom_mesh_chunk(&part,first,count,&chunk))
+                {halo_custom_mesh_dispose(&part);return FALSE;}
+                draw=&chunk;
+            }
+            slot=(short)asset->geometry.parts.count;
+            if(slot>=HALO_CUSTOM_PARTS)
+            {if(draw==&chunk)halo_custom_mesh_dispose(&chunk);halo_custom_mesh_dispose(&part);return FALSE;}
+            asset->geometry.parts.count++;
+            if(!geometry_part_make(asset,slot,material,draw))
+            {if(draw==&chunk)halo_custom_mesh_dispose(&chunk);halo_custom_mesh_dispose(&part);return FALSE;}
+            if(draw==&chunk)halo_custom_mesh_dispose(&chunk);
+        }
         halo_custom_mesh_dispose(&part);
     }
     return TRUE;
@@ -398,7 +415,7 @@ static boolean geometry_make(struct custom_asset *asset,struct halo_custom_mesh 
 static void asset_dispose(struct custom_asset *asset)
 {
     short i,j;
-    for(j=0;j<HALO_CUSTOM_MATERIALS;j++)
+    for(j=0;j<HALO_CUSTOM_PARTS;j++)
     {
         struct custom_part *part=&asset->parts[j];
         if(part->vertex_buffer.hardware_format)rasterizer_vertex_buffer_delete(&part->vertex_buffer);

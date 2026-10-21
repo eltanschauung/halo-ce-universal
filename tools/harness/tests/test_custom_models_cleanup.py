@@ -8,7 +8,7 @@ from harness import read,function,build,run,mutated,CHECK_FAILED
 def executable(fault=False):
     code=function(read('port/linux/game/custom_models.c'),'asset_dispose')
     if fault:code=mutated(code,'if(asset->vertex_data[j])','')
-    return build('custom_models_cleanup',(('cleanup.inc',code),))
+    return build('custom_models_cleanup',(('cleanup.inc',code),('halo_custom_models.h',read('port/linux/include/halo_custom_models.h'))))
 
 @pytest.mark.parametrize('case',['empty','partial'])
 def test_case(case):

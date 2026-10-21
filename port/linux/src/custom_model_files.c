@@ -128,9 +128,11 @@ int halo_custom_mesh_load(int index,int first_person,struct halo_custom_mesh *me
     if(index<=0 || index>=halo_custom_models_count() || first_person<0 || first_person>1)return 0;
     if(SDL_snprintf(path,sizeof(path),"%s/%s/source/characters/cyborg/%smodels/%s.jms",root,catalogue[index].id,
         first_person ? "fp/" : "",catalogue[index].id)>=(int)sizeof(path))return 0;
-    data=read_bounded(path,16u*1024u*1024u,&size);
+    data=read_bounded(path,HALO_CUSTOM_JMS_BYTES,&size);
     if(!data)return 0;
-    ok=halo_custom_mesh_parse(data,size,mesh);free(data);return ok;
+    ok=halo_custom_mesh_parse(data,size,mesh);free(data);
+    if(ok && !halo_custom_mesh_deduplicate(mesh)){halo_custom_mesh_dispose(mesh);return 0;}
+    return ok;
 }
 /* stb decodes palettes and pixels; reject truncated BMP rows before it can
    fill missing input with zeroes. Heights may encode top-down rows. */

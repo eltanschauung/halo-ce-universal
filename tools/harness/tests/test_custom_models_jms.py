@@ -89,7 +89,8 @@ def test_large_mesh_compacts_each_material(tmp_path,materials):
     triangles=''.join(f'0\n{i%materials}\n{i*3} {i*3+1} {i*3+2}\n' for i in range(21846))
     path=tmp_path/'large.jms';path.write_text(header+vertex*65538+'21846\n'+triangles)
     status,output=run(executable(),str(path))
-    assert status==(0 if materials==2 else 2),output[-1000:]
+    assert status==0,output[-1000:]
+    if materials==1:assert 'p 0 65538 21846' in output
     if materials==2:assert 'p 0 32769 10923' in output and 'p 1 32769 10923' in output
 
 
@@ -98,3 +99,29 @@ def test_legacy_armor_ignores_author_machine_bitmap_hint(tmp_path):
     path=tmp_path/'legacy.jms';path.write_text(data)
     status,output=run(executable(),str(path))
     assert status==0 and 'm 0 armor armor' in output
+
+@pytest.mark.parametrize('triangles',[21845,21846,65536,256000,256001])
+def test_extended_triangle_limit(tmp_path,triangles):
+    data=fixture().rsplit('1\n0\n0\n0 1 2\n',1)[0]
+    path=tmp_path/'triangles.jms'
+    path.write_text(data+str(triangles)+'\n'+('0\n0\n0 1 2\n'*triangles))
+    status,output=run(executable(),str(path))
+    assert status==(0 if triangles<=256000 else 1),output[-1000:]
+
+@pytest.mark.parametrize('vertices',[256000,256001,512000,512001])
+def test_extended_vertex_limit(tmp_path,vertices):
+    data=fixture().replace('\ncyborg\n3\n','\ncyborg\n'+str(vertices)+'\n')
+    start=data.index('0\n0 0 0\n0 0 1\n-1\n0\n0 0\n0\n')
+    vertex='0\n0 0 0\n0 0 1\n-1\n0\n0 0\n0\n'
+    path=tmp_path/'vertices.jms'
+    path.write_text(data[:start]+vertex*vertices+'1\n0\n0\n0 1 2\n')
+    status,output=run(executable(),str(path))
+    assert status==(0 if vertices<=512000 else 1),output[-1000:]
+
+def test_jms_size_limit(tmp_path):
+    path=tmp_path/'padded.jms'
+    with path.open('wb') as stream:
+        stream.write(fixture().encode());stream.write(b' '*(17*1024*1024))
+    assert run(executable(),str(path))[0]==0
+    with path.open('ab') as stream:stream.truncate(128*1024*1024+1)
+    assert run(executable(),str(path))[0]==1

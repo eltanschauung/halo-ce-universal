@@ -1649,10 +1649,13 @@ poses to mix. The source files are never rewritten. Authoring checksums and sour
 labels are normalized. Images may be PNGs or paletted 8-bit, RGB 24-bit or RGBA 32-bit BMPs (including top-down BMPs), and are
 resampled to power-of-two dimensions in memory. Assets are bounded by file,
 vertex, triangle and image limits and a shared 128 MiB residency allowance.
-A source JMS may contain up to 196,605 vertices and 65,535 triangles. Each
-material is compacted into its own ordinary geometry part, with at most
-65,535 referenced vertices per material. Invalid or incomplete models fall
-back to Chief; source meshes, weights and face winding are not altered.
+A source JMS may be up to 128 MiB and contain up to 512,000 exported vertices
+and 256,000 triangles. After parsing, byte-identical position, normal, UV and
+skin records share a vertex in memory; seams, skinning, triangle order and
+material assignments are preserved. Each material may reference up to 256,000
+unique vertices. Oversized material buffers are split into native 16-bit
+draw buffers; the native maximum of 32 geometry parts still applies. Invalid
+or incomplete models fall back to Chief. Source JMS files are never rewritten.
 
 An optional `source/characters/cyborg/fp/models/<id>.jms` replaces that profile's
 first-person arms independently of its body mesh. It uses the same material,

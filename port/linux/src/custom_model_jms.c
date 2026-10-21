@@ -61,7 +61,7 @@ int halo_custom_mesh_parse(char const *data, unsigned int size, struct halo_cust
     struct reader r;
     int i,j,regions,parents[HALO_CUSTOM_MAX_NODES]; char name[512];
     memset(m,0,sizeof(*m));
-    if (!data || !size || size>16u*1024u*1024u || memchr(data,0,size)) return 0;
+    if (!data || !size || size>HALO_CUSTOM_JMS_BYTES || memchr(data,0,size)) return 0;
     r.at=data;r.end=data+size;r.failed=0;
     if(integer(&r,8200,8200)!=8200) return 0;
     number(&r); /* authoring checksum; runtime uses the validated stock nodes */
@@ -114,7 +114,7 @@ int halo_custom_mesh_parse(char const *data, unsigned int size, struct halo_cust
     }
     regions=integer(&r,1,8);
     for(i=0;i<regions;i++)line(&r,name,sizeof(name));
-    m->vertex_count=integer(&r,3,196605);
+    m->vertex_count=integer(&r,3,HALO_CUSTOM_VERTICES);
     if(r.failed)goto fail;
     m->vertices=calloc(m->vertex_count,sizeof(*m->vertices));
     if(!m->vertices)goto fail;
@@ -130,7 +130,7 @@ int halo_custom_mesh_parse(char const *data, unsigned int size, struct halo_cust
         if(v->node[1]==-1 && v->weight!=0)r.failed=1;
         v->uv[0]=real_value(&r,-16,16);v->uv[1]=1.f-real_value(&r,-16,16);real_value(&r,-16,16);
     }
-    m->triangle_count=integer(&r,1,65535);
+    m->triangle_count=integer(&r,1,HALO_CUSTOM_TRIANGLES);
     if(r.failed)goto fail;
     m->triangles=malloc((size_t)m->triangle_count*3*sizeof(*m->triangles));
     m->triangle_materials=malloc((size_t)m->triangle_count*sizeof(*m->triangle_materials));
@@ -150,8 +150,44 @@ int halo_custom_mesh_parse(char const *data, unsigned int size, struct halo_cust
 fail:halo_custom_mesh_dispose(m);return 0;
 }
 
-/* A JMS can exceed a 16-bit vertex buffer across materials. Compact only
-   each material's referenced vertices, keeping the engine's part limits. */
+/* Collapse only identical parsed records. Normal/UV/skin discontinuities stay
+   separate, including the opposite-facing vertices of an outline shell. */
+int halo_custom_mesh_deduplicate(struct halo_custom_mesh *mesh)
+{
+    unsigned int *table,*remap,capacity=1;
+    struct halo_custom_vertex *smaller;
+    int i,j,count=0;
+    if(!mesh || mesh->vertex_count<1 || mesh->vertex_count>HALO_CUSTOM_VERTICES ||
+       !mesh->vertices || mesh->triangle_count<1 || mesh->triangle_count>HALO_CUSTOM_TRIANGLES || !mesh->triangles)return 0;
+    for(i=0;i<mesh->triangle_count*3;i++)if(mesh->triangles[i]>=(unsigned int)mesh->vertex_count)return 0;
+    while(capacity<(unsigned int)mesh->vertex_count*2)capacity*=2;
+    table=calloc(capacity,sizeof(*table));
+    remap=malloc((size_t)mesh->vertex_count*sizeof(*remap));
+    if(!table || !remap){free(table);free(remap);return 0;}
+    for(i=0;i<mesh->vertex_count;i++)
+    {
+        struct halo_custom_vertex const *vertex=&mesh->vertices[i];
+        unsigned char const *bytes=(unsigned char const *)vertex;
+        unsigned int hash=2166136261u,slot;
+        for(j=0;j<(int)sizeof(*vertex);j++)hash=(hash^bytes[j])*16777619u;
+        slot=hash&(capacity-1);
+        while(table[slot] && memcmp(vertex,&mesh->vertices[table[slot]-1],sizeof(*vertex)))slot=(slot+1)&(capacity-1);
+        if(!table[slot])
+        {
+            if(count!=i)mesh->vertices[count]=*vertex;
+            table[slot]=(unsigned int)++count;
+        }
+        remap[i]=table[slot]-1;
+    }
+    for(i=0;i<mesh->triangle_count*3;i++)mesh->triangles[i]=remap[mesh->triangles[i]];
+    mesh->vertex_count=count;
+    smaller=realloc(mesh->vertices,(size_t)count*sizeof(*smaller));
+    if(smaller)mesh->vertices=smaller;
+    free(remap);free(table);return 1;
+}
+
+/* Compact each material independently, then split large materials into
+   native 16-bit draw buffers without changing their shader or triangles. */
 int halo_custom_mesh_material(struct halo_custom_mesh const *mesh,int material,struct halo_custom_mesh *part)
 {
     int *remap;
@@ -161,7 +197,7 @@ int halo_custom_mesh_material(struct halo_custom_mesh const *mesh,int material,s
     for(i=0;i<mesh->triangle_count;i++)if(mesh->triangle_materials[i]==material)count++;
     if(!count)return 1;
     remap=malloc((size_t)mesh->vertex_count*sizeof(*remap));
-    part->vertices=malloc((size_t)(mesh->vertex_count<65535 ? mesh->vertex_count : 65535)*sizeof(*part->vertices));
+    part->vertices=malloc((size_t)(mesh->vertex_count<HALO_CUSTOM_MATERIAL_VERTICES ? mesh->vertex_count : HALO_CUSTOM_MATERIAL_VERTICES)*sizeof(*part->vertices));
     part->triangles=malloc((size_t)count*3*sizeof(*part->triangles));
     if(!remap || !part->vertices || !part->triangles)goto fail;
     for(i=0;i<mesh->vertex_count;i++)remap[i]=-1;
@@ -173,7 +209,7 @@ int halo_custom_mesh_material(struct halo_custom_mesh const *mesh,int material,s
             if(old>=(unsigned int)mesh->vertex_count)goto fail;
             if(remap[old]<0)
             {
-                if(part->vertex_count==65535)goto fail;
+                if(part->vertex_count==HALO_CUSTOM_MATERIAL_VERTICES)goto fail;
                 remap[old]=part->vertex_count;part->vertices[part->vertex_count++]=mesh->vertices[old];
             }
             part->triangles[part->triangle_count*3+j]=(unsigned int)remap[old];
@@ -181,5 +217,31 @@ int halo_custom_mesh_material(struct halo_custom_mesh const *mesh,int material,s
         part->triangle_count++;
     }
     free(remap);return 1;
+fail:free(remap);halo_custom_mesh_dispose(part);return 0;
+}
+
+/* At most three distinct vertices per triangle: this bound guarantees that
+   a chunk fits native unsigned-short indices even with fully split JMS data. */
+int halo_custom_mesh_chunk(struct halo_custom_mesh const *mesh,int first,int count,struct halo_custom_mesh *part)
+{
+    int *remap,i,j,old;
+    memset(part,0,sizeof(*part));
+    if(first<0 || count<1 || count>HALO_CUSTOM_CHUNK_TRIANGLES ||
+       first>mesh->triangle_count || count>mesh->triangle_count-first)return 0;
+    remap=malloc((size_t)mesh->vertex_count*sizeof(*remap));
+    part->vertices=malloc((size_t)count*3*sizeof(*part->vertices));
+    part->triangles=malloc((size_t)count*3*sizeof(*part->triangles));
+    if(!remap || !part->vertices || !part->triangles)goto fail;
+    for(i=0;i<mesh->vertex_count;i++)remap[i]=-1;
+    for(i=0;i<count;i++)for(j=0;j<3;j++)
+    {
+        unsigned int index=mesh->triangles[(first+i)*3+j];
+        if(index>=(unsigned int)mesh->vertex_count)goto fail;
+        old=(int)index;
+        if(remap[old]<0)
+        {remap[old]=part->vertex_count;part->vertices[part->vertex_count++]=mesh->vertices[old];}
+        part->triangles[i*3+j]=(unsigned int)remap[old];
+    }
+    part->triangle_count=count;free(remap);return 1;
 fail:free(remap);halo_custom_mesh_dispose(part);return 0;
 }
