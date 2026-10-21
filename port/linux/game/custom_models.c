@@ -148,9 +148,6 @@ static struct bitmap_data *bitmap_from_image(struct halo_custom_image *image)
     if(bitmap && bitmap->base_address)
     {memcpy(bitmap->base_address,image->pixels,image->width*image->height*4);bitmap_rebuild(bitmap);}
     halo_custom_image_dispose(image);
-    /* A decoded image is not usable if its native graphics allocation failed. */
-    if(bitmap && (!bitmap->base_address || !bitmap->hardware_format))
-    {bitmap_delete(bitmap);bitmap=NULL;}
     return bitmap;
 }
 static struct bitmap_data *image_bitmap(short index,short kind)

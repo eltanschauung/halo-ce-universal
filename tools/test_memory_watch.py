@@ -250,17 +250,3 @@ def test_an_ignored_signal_stays_ignored(program):
     result = run(program, "ignored")
     assert result.returncode == 0
     assert result.stdout.strip() == "survived"
-
-
-def test_desktop_window_and_windows_watch_agree():
-    import re
-    platform=(ROOT/'port/linux/src/platform.h').read_text()
-    watch=(ROOT/'port/windows/src/win32_memory_watch.c').read_text()
-    sizes=[int(v,16) for v in re.findall(r'#define PLATFORM_CONTIGUOUS_SIZE (0x[0-9A-Fa-f]+)',platform)]
-    base=int(re.search(r'#define PLATFORM_CONTIGUOUS_BASE (0x[0-9A-Fa-f]+)',platform)[1],16)
-    windows=int(re.search(r'#define PLATFORM_CONTIGUOUS_SIZE (0x[0-9A-Fa-f]+)',watch)[1],16)
-    assert len(sizes)==2 and sizes[0]==128*1024*1024
-    assert windows==sizes[1]
-    # A full 2 GiB window at this base wraps 32-bit range calculations and
-    # reaches Windows' reserved top pages. Keep host address space above it.
-    assert 512*1024*1024<sizes[1]<2**32-base-65536

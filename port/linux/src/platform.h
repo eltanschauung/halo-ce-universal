@@ -149,11 +149,11 @@ the window (port/android/include/halo_android_abi.h), and the web build's
 WebAssembly memory ends with it (tools/web_build.py) */
 #define PLATFORM_CONTIGUOUS_SIZE 0x08000000UL
 #else
-/* 1536 MiB on desktop: 4K custom textures share this resource window with
-   map caches and geometry. Keep the top 512 MiB outside it for the host
-   process; a full 2 GiB window reaches reserved pages on 32-bit Windows.
-   Pages are backed only as used. win32_memory_watch.c uses the same size. */
-#define PLATFORM_CONTIGUOUS_SIZE 0x60000000UL
+/* 512 MB on the desktop builds, whose caches outgrow the Xbox's (Custom
+Edition maps' textures and geometry: halo_port_capacity.h). Its pages are
+backed as they are used. port/windows/src/win32_memory_watch.c has the
+same size. */
+#define PLATFORM_CONTIGUOUS_SIZE 0x20000000UL
 #endif
 #define PLATFORM_ANY_PHYSICAL_ADDRESS 0xffffffffUL
 
