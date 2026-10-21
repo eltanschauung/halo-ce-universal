@@ -159,7 +159,9 @@ static boolean object_test_vector(
 	real_point3d const *point,
 	real_vector3d const *vector,
 	long ignore_object_index,
-	struct collision_result *collision);
+	struct collision_result *collision,
+	collision_object_filter filter,
+	void const *context);
 boolean collision_test_vector_exit(
 	struct collision_result const *previous_collision,
 	real_point3d const *point,
@@ -482,6 +484,21 @@ boolean collision_test_vector(
 	long ignore_object_index,
 	struct collision_result *collision)
 {
+	/* port: existing callers retain their unfiltered query. */
+	return collision_test_vector_filtered(flags, point, vector, ignore_object_index, collision, NULL, NULL);
+}
+
+/* port: a projectile can exclude teammates in the same sweep, without
+consuming impact retries or stepping past a wall behind the excluded unit. */
+boolean collision_test_vector_filtered(
+	unsigned long flags,
+	real_point3d const *point,
+	real_vector3d const *vector,
+	long ignore_object_index,
+	struct collision_result *collision,
+	collision_object_filter filter,
+	void const *context)
+{
 	boolean hit = FALSE;
 	boolean test_environment = TEST_FLAG(flags, _collision_test_structure_bit) ||
 		TEST_FLAG(flags, _collision_test_media_bit) ||
@@ -675,7 +692,7 @@ boolean collision_test_vector(
 								point,
 								vector,
 								ignore_object_index,
-								collision))
+								collision, filter, context)) /* port: same filter throughout the hierarchy */
 						{
 							hit = TRUE;
 						}
@@ -1675,7 +1692,9 @@ static boolean object_test_vector(
 	real_point3d const *point,
 	real_vector3d const *vector,
 	long ignore_object_index,
-	struct collision_result *collision)
+	struct collision_result *collision,
+	collision_object_filter filter,
+	void const *context)
 {
 	boolean hit = FALSE;
 
@@ -1690,7 +1709,8 @@ static boolean object_test_vector(
 				point,
 				vector,
 				&object->object.bounding_sphere_center,
-				(object->object.bounding_sphere_radius)))
+				(object->object.bounding_sphere_radius)) &&
+			(!filter || filter(object_index, context))) /* port: omit before testing geometry */
 		{
 			if (TEST_FLAG(_object_mask_vehicle, object->object.type) &&
 				TEST_FLAG(flags, _collision_test_use_vehicle_physics_bit))
@@ -1762,7 +1782,7 @@ static boolean object_test_vector(
 					point,
 					vector,
 					ignore_object_index,
-					collision))
+					collision, filter, context)) /* port: also omit held/attached objects */
 			{
 				hit = TRUE;
 			}

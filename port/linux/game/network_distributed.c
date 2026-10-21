@@ -59,6 +59,7 @@ machine (their datum identifiers need not be).
 #include "assault_rifle_balance.h"
 #include "custom_models.h"
 #include "cseries.h"
+#include "friendly_grenades.h"
 #include "coop_respawn.h"
 #include "coop_vehicle_effects.h"
 #include "cseries/errors.h"
@@ -4536,6 +4537,11 @@ void network_distributed_handle_message(
 		if (header.type == _distributed_message_assault_rifle_policy)
 		{
 			assault_rifle_balance_handle(machine_index, message, size, reliable && !distributed_handling_batch);
+			return;
+		}
+		if (header.type == _distributed_message_grenade_collision_policy)
+		{
+			friendly_grenades_handle(machine_index, message, size, reliable && !distributed_handling_batch);
 			return;
 		}
 		if (header.type == _distributed_message_needler_policy)

@@ -117,6 +117,18 @@ typedef char collision_result_material_type_offset_assert[
 
 /* ---------- prototypes/COLLISIONS.C */
 
+/* port: reject selected objects before their geometry or children are tested.
+The context belongs to this query; there is no global collision-filter state. */
+typedef boolean (*collision_object_filter)(long object_index, void const *context);
+boolean collision_test_vector_filtered(
+	unsigned long flags,
+	real_point3d const *point,
+	real_vector3d const *vector,
+	long ignore_object_index,
+	struct collision_result *collision,
+	collision_object_filter filter,
+	void const *context);
+
 long collision_model_get_material_type(
 	struct collision_model const *model,
 	short material_index);

@@ -150,6 +150,8 @@ enum
 	/* Optional co-op death countdown; core player state is unchanged. */
 	_distributed_message_coop_respawn = 247,
 	_distributed_message_coop_vehicle_effect = 248,
+	/* Optional, negotiated teammate collision rules for thrown grenades. */
+	_distributed_message_grenade_collision_policy = 249,
 	/* Optional host Needler rules, only after capability negotiation. */
 	_distributed_message_needler_policy = 253,
 	/* Optional host assault rifle rules, independently negotiated. */

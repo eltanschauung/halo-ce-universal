@@ -3583,6 +3583,8 @@ static boolean main_loop_iteration(
 			{ extern void needler_balance_update(void); needler_balance_update(); }
 			/* port: negotiate the assault rifle buff separately from the Needler. */
 			{ extern void assault_rifle_balance_update(void); assault_rifle_balance_update(); }
+			/* port: all supporting peers filter friendly grenades before impact. */
+			{ extern void friendly_grenades_update(void); friendly_grenades_update(); }
 			network_aim_assist_update();
 			network_social_update();
 			network_profile_rgb_update(); /* port: optional cosmetic colors */

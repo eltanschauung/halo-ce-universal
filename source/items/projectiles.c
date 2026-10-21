@@ -120,6 +120,7 @@ symbols in this file:
 #include "projectiles_callbacks.h"
 #include "projectile_definitions.h"
 #include "needler_balance.h" /* port: port/linux/game/needler_balance.c */
+#include "friendly_grenades.h" /* port: port/linux/game/friendly_grenades.c */
 
 #include "ai/ai.h"
 #include "cseries/profile.h"
@@ -1283,7 +1284,7 @@ static boolean projectile_collision_test_line(
 	struct projectile_datum *projectile = projectile_get(projectile_index);
 	struct projectile_definition const *definition = projectile_definition_get(projectile->definition_index);
 
-	if (collision_test_line(
+	if (friendly_grenades_collision_test_line(projectile_index, /* port: same sweep, excluding teammates */
 		_collision_test_for_projectiles_flags,
 		&projectile->object.position,
 		new_position,
@@ -1316,13 +1317,13 @@ static boolean projectile_collision_test_line(
 		point_from_line3d(&projectile->object.position, &left, -definition->projectile.collision_radius, &p0_right);
 		point_from_line3d(new_position, &left, -definition->projectile.collision_radius, &p1_right);
 
-		if (collision_test_line(
+		if (friendly_grenades_collision_test_line(projectile_index,
 				_collision_test_for_projectiles_fat_flags,
 				&p0_left,
 				&p1_left,
 				projectile->projectile.ignore_object_index,
 				collision) ||
-			collision_test_line(
+			friendly_grenades_collision_test_line(projectile_index,
 				_collision_test_for_projectiles_fat_flags,
 				&p0_right,
 				&p1_right,

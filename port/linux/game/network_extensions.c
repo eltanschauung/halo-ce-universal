@@ -12,6 +12,7 @@
 #include "network_profile_rgb.h"
 #include "needler_balance.h"
 #include "assault_rifle_balance.h"
+#include "friendly_grenades.h"
 #include <string.h>
 
 boolean network_distributed_client_send_reliably(void *, word);
@@ -20,7 +21,7 @@ enum
 {
     EXT_AIM = 1, EXT_SUICIDE = 2, EXT_DEATH = 4, EXT_SOCIAL = 8,
     EXT_SPRAY = 16, EXT_MODELS = 32, EXT_NEEDLER = 64, EXT_ASSAULT_RIFLE = 128,
-    EXT_RESPAWN = 256, EXT_ALL = 511, EXT_REVISION = 1
+    EXT_RESPAWN = 256, EXT_GRENADE_COLLISION = 512, EXT_ALL = 1023, EXT_REVISION = 1
 };
 #define EXT_MAGIC 0x45544C45UL /* ELTE */
 struct extension_message
@@ -50,6 +51,7 @@ void network_extensions_reset(void)
     memset(machine_features, 0, sizeof(machine_features));
     needler_balance_reset();
     assault_rifle_balance_reset();
+    friendly_grenades_reset();
 }
 
 void network_extensions_machine_joined(long machine)
@@ -75,6 +77,7 @@ word network_extensions_feature(byte type)
     case 250: return EXT_SPRAY; /* spray_share.h's private extension */
     case _distributed_message_needler_policy: return EXT_NEEDLER;
     case _distributed_message_assault_rifle_policy: return EXT_ASSAULT_RIFLE;
+    case _distributed_message_grenade_collision_policy: return EXT_GRENADE_COLLISION;
     default: return 0;
     }
 }
@@ -128,12 +131,12 @@ void network_extensions_update(void)
     message.magic = EXT_MAGIC;
     message.revision = EXT_REVISION;
     /* Older forks reject unknown bits: retry their original feature set. */
-    message.features = hello_attempts < 2 ? EXT_ALL : hello_attempts < 4 ? 255 : hello_attempts < 6 ? 127 : hello_attempts < 8 ? 63 : 31;
+    message.features = hello_attempts < 2 ? EXT_ALL : hello_attempts < 4 ? 511 : hello_attempts < 6 ? 255 : hello_attempts < 8 ? 127 : hello_attempts < 10 ? 63 : 31;
     build_message_header(&message.header.header, sizeof(message), 2, 0);
     if (network_distributed_client_send_reliably(&message, sizeof(message)))
     {
         hello_sent = TRUE;
-        if (hello_attempts < 8) hello_attempts++;
+        if (hello_attempts < 10) hello_attempts++;
         last_hello = now;
     }
 }

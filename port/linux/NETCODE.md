@@ -971,6 +971,25 @@ state, without new payloads or a changed protocol version (32).
 The same capability enables private message 248 for extra-vehicle teleport
 effects. Clients wait up to three seconds for the matching full vehicle
 handle and definition, then use the local campaign respawn effect.
+
+### Fork grenade teammate collisions
+
+Capability 512 and reliable private message 249 negotiate teammate grenade
+pass-through when friendly fire is not On. The host enables it only when
+every connected machine supports it; an upstream, older or newly unknown
+peer restores stock flight. Protocol 32 and core messages are unchanged.
+The policy follows the existing weapon-rule negotiation and is sent on
+changes and every 500 ms, only to supporting peers.
+
+Each peer rejects teammate bipeds and their attached equipment before
+testing their collision geometry, in the original center and side sweeps.
+There is no impact event, bounce, stick, extra collision iteration or network
+acknowledgement for passing through a teammate. Walls, enemies, vehicles,
+unowned grenades, other projectiles and explosion damage retain their
+normal rules. Changing lobby membership or policy while a grenade is in
+flight can still produce a transient difference until the policy arrives,
+as with other optional simulated rules.
+
 ### Comparing two builds
 
 `tools/net_compare.py` checks that two builds play a network game in step:
