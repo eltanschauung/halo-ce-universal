@@ -9,6 +9,7 @@
 struct damage_data;
 void source_movement_reset(void);
 void source_movement_update(void);
+real source_movement_fall_velocity(long biped_index, real velocity, real stock_gravity);
 void source_movement_handle(long machine, word const *data, word size, boolean reliable);
 boolean source_movement_player(long player_index);
 boolean source_movement_biped(long biped_index);

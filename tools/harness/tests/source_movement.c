@@ -81,6 +81,8 @@ int main(int argc,char **argv){CHECK(argc==2,"case");char const *case_name=argv[
  else CASE("air-cap"){source_movement_step(&v,&wish,&normal,TRUE,FALSE);CLOSE(v.i,30.f/120/30);v.i=.2;source_movement_step(&v,&wish,&normal,TRUE,FALSE);CLOSE(v.i,.2);}
  else CASE("air-strafe"){v.i=SOURCE_MOVE_SPEED;wish.i=0;wish.j=SOURCE_MOVE_SPEED;source_movement_step(&v,&wish,&normal,TRUE,FALSE);CLOSE(v.i,SOURCE_MOVE_SPEED);CHECK(v.j>0,"no air strafe");}
  else CASE("bhop"){v.i=.15;source_movement_step(&v,&wish,&normal,FALSE,TRUE);CLOSE(v.i,.15);}
+ else CASE("fall-distance"){real stock=.003f;real height=12.f;real source_speed=sqrtf(2*SOURCE_GRAVITY*height);real stock_speed=sqrtf(2*stock*height);CHECK(source_speed>stock_speed,"no gravity difference");CLOSE(source_movement_fall_velocity(10,-source_speed,stock),-stock_speed);CLOSE(source_movement_fall_velocity(10,source_speed,stock),stock_speed);CLOSE(source_movement_fall_velocity(10,-source_speed,0),-source_speed);}
+ else CASE("stock-fall"){setting=0;CLOSE(source_movement_fall_velocity(10,-.5f,.003f),-.5f);setting=1;body.unit.player_index=NONE;CLOSE(source_movement_fall_velocity(10,-.5f,.003f),-.5f);}
  else CASE("gravity"){source_movement_step(&v,&wish,&normal,TRUE,FALSE);CLOSE(v.k,-SOURCE_GRAVITY*.5);CLOSE(source_movement_player_gravity(handles[0],.001),SOURCE_GRAVITY);}
  else CASE("jump"){body.object.translational_velocity.i=.2;CHECK(biped_jump(10),"no jump");CLOSE(body.object.translational_velocity.k,SOURCE_JUMP_SPEED);CLOSE(body.object.translational_velocity.i,.2);CHECK(!biped_jump(10),"air jump");}
  else CASE("stock-jump"){setting=0;CHECK(biped_jump(10),"no stock jump");CLOSE(body.object.translational_velocity.k,.12);}

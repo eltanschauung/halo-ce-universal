@@ -28,6 +28,10 @@ landing movement lock or six-ground-tick jump recovery. No extra horizontal
 speed is awarded simply for holding forward in the air. Air strafing adds
 velocity according to its projection on the wish direction.
 
+Fall-damage checks convert velocity by sqrt(stock gravity / Source gravity),
+keeping Halo's fall-distance thresholds without altering actual movement.
+This includes the airborne maximum-distance death check used before landing.
+
 Gravity is split around collision movement. Prediction's ballistic bounds
 use the selected player's gravity and jump speed; the existing host-derived
 speed envelope and position validation remain in force. Policies use shared

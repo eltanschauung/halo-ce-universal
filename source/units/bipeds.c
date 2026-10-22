@@ -815,6 +815,10 @@ static void biped_falling_damage(
 		TEST_FLAG(definition->biped.flags, _biped_immune_to_falling_damage_bit);
 	real falling_velocity = biped->object.translational_velocity.k;
 
+	/* port: Source gravity must not turn scripted safe drops into early deaths. */
+	collision_velocity = source_movement_fall_velocity(biped_index, collision_velocity, global_gravity);
+	falling_velocity = source_movement_fall_velocity(biped_index, falling_velocity, global_gravity);
+
 	if (!cheat.jetpack || biped->unit.player_index == NONE)
 	{
 		if (collision_velocity > falling_damage->runtime_minimum_damage_velocity)
