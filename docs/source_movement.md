@@ -15,13 +15,15 @@ water/ladder behavior, class abilities or a different network tick rate.
 Consequently this is Source-style movement, not an exact reproduction of
 every HL2/TF2 collision or tick-dependent trick.
 
-Parameters are 320 Source units/s run speed, 10 ground/air acceleration,
+Walking and running use Halo's existing calculated movement speeds, including
+directional speeds, crouching, stun, scripted scaling and double-speed powerups.
+Parameters are 10 ground/air acceleration,
 4 friction, 100 units/s stop speed, 30 units/s air wish projection cap,
 800 units/s/s gravity and a 268.328 units/s jump (TF2's 45-unit jump).
 One Halo world unit is 120 Source inches. Engine velocities are converted
-to world units per 30 Hz tick, not per rendered frame. Ground wish velocity
-is normalized, crouching reduces it to one third, and air movement retains
-existing momentum. Held jump hops immediately on landing, without Halo's
+to world units per 30 Hz tick, not per rendered frame. Wish velocity comes
+from Halo's normal movement calculation, and air movement retains existing
+momentum. Held jump hops immediately on landing, without Halo's
 landing movement lock or six-ground-tick jump recovery. No extra horizontal
 speed is awarded simply for holding forward in the air. Air strafing adds
 velocity according to its projection on the wish direction.

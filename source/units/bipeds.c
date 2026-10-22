@@ -2429,7 +2429,7 @@ static void biped_update_physics(
 	{
 		real_vector3d wish;
 		struct biped_datum *biped = biped_get(physics->biped_index);
-		source_movement_wish(physics->biped_index, &physics->forward, &wish);
+		source_movement_wish(&physics->movement_desired, &physics->forward, &wish);
 		physics->new_velocity = physics->velocity;
 		source_movement_step(&physics->new_velocity, &wish, &physics->ground_plane.n,
 			TEST_FLAG(in_flags, _biped_physics_in_airborne_bit),

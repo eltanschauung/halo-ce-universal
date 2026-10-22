@@ -3,6 +3,7 @@
 typedef unsigned short word;
 typedef struct {real i,j;} real_vector2d;
 #define TICKS_PER_SECOND 30
+#define SOURCE_MOVE_SPEED (2.25f / TICKS_PER_SECOND)
 #define HALO_PORT_MAXIMUM_NETWORK_PLAYERS 128
 #define HALO_PORT_MAXIMUM_NETWORK_MACHINES 128
 #define NUMBEROF(a) (sizeof(a)/sizeof((a)[0]))
@@ -71,9 +72,11 @@ int main(int argc,char **argv){CHECK(argc==2,"case");char const *case_name=argv[
  CASE("ground"){for(int i=0;i<30;i++)source_movement_step(&v,&wish,&normal,FALSE,FALSE);CLOSE(v.i,SOURCE_MOVE_SPEED);}
  else CASE("friction"){v.i=SOURCE_MOVE_SPEED;wish.i=0;source_movement_step(&v,&wish,&normal,FALSE,FALSE);CLOSE(v.i,SOURCE_MOVE_SPEED*(1.f-4.f/30));}
  else CASE("stop"){v.i=.001f;wish.i=0;source_movement_step(&v,&wish,&normal,FALSE,FALSE);CLOSE(v.i,0);}
- else CASE("reverse"){v.i=SOURCE_MOVE_SPEED;wish.i=-wish.i;for(int i=0;i<8;i++)source_movement_step(&v,&wish,&normal,FALSE,FALSE);CHECK(v.i<-.08,"reverse failed");}
- else CASE("diagonal"){body.unit.throttle.i=body.unit.throttle.j=1;source_movement_wish(10,&forward,&wish);CLOSE(sqrtf(wish.i*wish.i+wish.j*wish.j),SOURCE_MOVE_SPEED);}
- else CASE("crouch"){body.unit.throttle.i=1;body.biped.crouch=1;source_movement_wish(10,&forward,&wish);CLOSE(wish.i,SOURCE_MOVE_SPEED/3);body.biped.flags=FLAG(_biped_airborne_bit);source_movement_wish(10,&forward,&wish);CLOSE(wish.i,SOURCE_MOVE_SPEED);}
+ else CASE("reverse"){v.i=SOURCE_MOVE_SPEED;wish.i=-wish.i;for(int i=0;i<8;i++)source_movement_step(&v,&wish,&normal,FALSE,FALSE);CHECK(v.i<-.07,"reverse failed");}
+ else CASE("diagonal"){real_vector3d desired={.05f,.04f,0};source_movement_wish(&desired,&forward,&wish);CLOSE(wish.i,.05);CLOSE(wish.j,.04);}
+ else CASE("crouch"){real_vector3d desired={.025f,0,0};source_movement_wish(&desired,&forward,&wish);CLOSE(wish.i,.025);}
+ else CASE("stock-speed"){real_vector3d desired={2.25f/30,0,0};source_movement_wish(&desired,&forward,&wish);for(int i=0;i<90;i++)source_movement_step(&v,&wish,&normal,FALSE,FALSE);CLOSE(v.i,2.25f/30);desired.i=-2.f/30;source_movement_wish(&desired,&forward,&wish);for(int i=0;i<90;i++)source_movement_step(&v,&wish,&normal,FALSE,FALSE);CLOSE(v.i,-2.f/30);}
+ else CASE("modifiers"){real_vector3d desired={.15f,.02f,0};forward.i=0;forward.j=1;source_movement_wish(&desired,&forward,&wish);CLOSE(wish.i,-.02);CLOSE(wish.j,.15);desired.i=desired.j=0;source_movement_wish(&desired,&forward,&wish);CLOSE(wish.i,0);CLOSE(wish.j,0);}
  else CASE("air-coast"){v.i=.25;v.j=.1;wish.i=0;source_movement_step(&v,&wish,&normal,TRUE,FALSE);CLOSE(v.i,.25);CLOSE(v.j,.1);}
  else CASE("air-cap"){source_movement_step(&v,&wish,&normal,TRUE,FALSE);CLOSE(v.i,30.f/120/30);v.i=.2;source_movement_step(&v,&wish,&normal,TRUE,FALSE);CLOSE(v.i,.2);}
  else CASE("air-strafe"){v.i=SOURCE_MOVE_SPEED;wish.i=0;wish.j=SOURCE_MOVE_SPEED;source_movement_step(&v,&wish,&normal,TRUE,FALSE);CLOSE(v.i,SOURCE_MOVE_SPEED);CHECK(v.j>0,"no air strafe");}

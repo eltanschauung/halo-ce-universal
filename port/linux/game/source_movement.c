@@ -134,25 +134,16 @@ void source_movement_handle(long machine, word const *data, word size, boolean r
     source_policy_valid = TRUE;
 }
 
-void source_movement_wish(long index, real_vector3d const *forward, real_vector3d *wish)
+void source_movement_wish(real_vector3d const *desired, real_vector3d const *forward, real_vector3d *wish)
 {
-    struct biped_datum *biped = biped_get(index);
-    struct player_datum *player = player_get(biped->unit.player_index);
     real_vector2d facing;
-    real_vector2d throttle;
-    real speed;
     facing.i = forward->i;
     facing.j = forward->j;
     normalize2d(&facing);
-    throttle.i = biped->unit.throttle.i;
-    throttle.j = biped->unit.throttle.j;
-    if (magnitude_squared2d(&throttle) > 1.f) normalize2d(&throttle);
-    speed = SOURCE_MOVE_SPEED * MAX(player->speed_multiplier, 0.f);
-    /* Crouching slows wish movement, not existing airborne momentum. */
-    if (!TEST_FLAG(biped->biped.flags, _biped_airborne_bit))
-        speed *= 1.f - (2.f / 3.f) * biped->biped.crouch;
-    wish->i = (facing.i * throttle.i - facing.j * throttle.j) * speed;
-    wish->j = (facing.j * throttle.i + facing.i * throttle.j) * speed;
+    /* Use Halo's calculated speed, including direction, crouch, stun and powerups.
+       Source acceleration may still retain extra momentum from jumps and strafing. */
+    wish->i = facing.i * desired->i - facing.j * desired->j;
+    wish->j = facing.j * desired->i + facing.i * desired->j;
     wish->k = 0.f;
 }
 

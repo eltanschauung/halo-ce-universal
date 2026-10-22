@@ -28,7 +28,7 @@ def generated(fault=None):
             ('under_test.inc', code), ('jump.inc', jump))
 
 
-CASES = ['ground', 'friction', 'stop', 'reverse', 'diagonal', 'crouch', 'air-coast',
+CASES = ['ground', 'friction', 'stop', 'reverse', 'diagonal', 'crouch', 'stock-speed', 'modifiers', 'air-coast',
          'air-cap', 'air-strafe', 'bhop', 'gravity', 'jump', 'stock-jump',
          'solo', 'mixed-host', 'upstream-host', 'policy', 'bad-policy', 'slot-reuse',
          'reset', 'send', 'excluded', 'self-damage', 'other-damage', 'replay']
