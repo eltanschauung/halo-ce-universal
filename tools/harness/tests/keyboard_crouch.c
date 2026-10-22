@@ -15,6 +15,9 @@ struct test_input { real_vector2d throttle; unsigned long unit_control_flags; };
 static unsigned long held_actions[MAXIMUM_GAMEPADS];
 static long now;
 static boolean controls_enable_crouch;
+static struct {long unit_index;} local_player={10}, *player=&local_player;
+static boolean source_enabled;
+static boolean source_movement_biped(long index){return source_enabled;}
 static unsigned long halo_keyboard_actions(short controller_index) { return held_actions[controller_index]; }
 static long system_milliseconds(void) { return now; }
 int halo_linux_touch_move(short controller_index, real *forward, real *strafe)

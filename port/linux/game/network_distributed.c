@@ -57,6 +57,7 @@ machine (their datum identifiers need not be).
 #include "network_profile_rgb.h"
 #include "needler_balance.h"
 #include "assault_rifle_balance.h"
+#include "source_movement.h"
 #include "custom_models.h"
 #include "cseries.h"
 #include "friendly_grenades.h"
@@ -2180,6 +2181,7 @@ static void distributed_handle_predictions(
 how high (distributed_on_foot_bound) */
 struct distributed_on_foot_bound
 {
+	real gravity; /* per-player gravity, never a wire field */
 	/* across and up (world units a tick) */
 	real speed;
 	/* the highest the host has had it since it last had it on the ground,
@@ -2221,6 +2223,7 @@ static void distributed_on_foot_bound(
 	struct player_datum *player = distributed_player(player_index);
 	struct game_globals *globals = scenario_get_game_globals();
 	long now = game_time_get();
+	real gravity = source_movement_biped(unit_index) ? SOURCE_GRAVITY : global_gravity;
 	real_vector3d const *velocity = &object->object.translational_velocity;
 	real host_speed = (real)sqrt(velocity->i * velocity->i + velocity->j * velocity->j + velocity->k * velocity->k);
 	real taken_speed = (real)sqrt(noted->velocity.i * noted->velocity.i + noted->velocity.j * noted->velocity.j +
@@ -2283,7 +2286,7 @@ static void distributed_on_foot_bound(
 	{
 		struct biped_definition *definition = biped_definition_get(biped->definition_index);
 
-		jump_speed = definition->biped.jump_velocity;
+		jump_speed = source_movement_biped(unit_index) ? SOURCE_JUMP_SPEED : definition->biped.jump_velocity;
 		crouch_rise = definition->biped.collision_height_standing - definition->biped.collision_height_crouching;
 	}
 	base_speed = PREDICTED_ON_FOOT_SPEED_SCALE * (real)sqrt(run_speed * run_speed + jump_speed * jump_speed);
@@ -2339,8 +2342,9 @@ static void distributed_on_foot_bound(
 		rise_speed += jump_speed;
 	rise_speed += MAX(jump_speed, run_speed);
 	bound->rise = UNIT_WORLD_BOUND;
-	if (biped && global_gravity > 0.0f)
-		bound->rise = rise_speed * rise_speed / (2.0f * global_gravity) + crouch_rise + PREDICTED_RISE_TOLERANCE;
+	bound->gravity = gravity;
+	if (biped && gravity > 0.0f)
+		bound->rise = rise_speed * rise_speed / (2.0f * gravity) + crouch_rise + PREDICTED_RISE_TOLERANCE;
 	bound->rise_speed = rise_speed;
 	bound->rise_base = crouch_rise + PREDICTED_RISE_TOLERANCE;
 	bound->airborne_ticks = noted->grounded ? 0 : now - noted->ground_time;
@@ -2359,8 +2363,8 @@ static real distributed_on_foot_fall_speed(
 	real drop = bound->top_height - height;
 	real speed = bound->speed;
 
-	if (drop > 0.0f && global_gravity > 0.0f)
-		speed += (real)sqrt(2.0f * global_gravity * drop);
+	if (drop > 0.0f && bound->gravity > 0.0f)
+		speed += (real)sqrt(2.0f * bound->gravity * drop);
 	return MIN(speed, MAXIMUM_PREDICTED_SPEED);
 }
 
@@ -2381,9 +2385,9 @@ static real distributed_on_foot_ceiling(
 			(real)PREDICTION_CEILING_LEAD_TICKS) -
 		(real)PREDICTION_JITTER_TICKS;
 
-	if (bound->airborne_ticks > 0 && ticks > 0.0f && global_gravity > 0.0f)
+	if (bound->airborne_ticks > 0 && ticks > 0.0f && bound->gravity > 0.0f)
 	{
-		real ceiling = bound->rise_base + bound->rise_speed * ticks - 0.5f * global_gravity * ticks * ticks;
+		real ceiling = bound->rise_base + bound->rise_speed * ticks - 0.5f * bound->gravity * ticks * ticks;
 
 		if (ceiling < rise)
 			rise = ceiling;
@@ -4537,6 +4541,11 @@ void network_distributed_handle_message(
 		if (header.type == _distributed_message_assault_rifle_policy)
 		{
 			assault_rifle_balance_handle(machine_index, message, size, reliable && !distributed_handling_batch);
+			return;
+		}
+		if (header.type == _distributed_message_source_movement)
+		{
+			source_movement_handle(machine_index, message, size, reliable && !distributed_handling_batch);
 			return;
 		}
 		if (header.type == _distributed_message_grenade_collision_policy)

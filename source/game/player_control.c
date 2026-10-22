@@ -213,6 +213,7 @@ symbols in this file:
 #include "passenger_camera.h" /* port: port/linux/game/passenger_camera.c; after the limit2d alias above */
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
 #include "network_chat.h" /* port: chat owns the local player's input */
+#include "source_movement.h" /* port: full-speed crouch input in Source mode */
 
 /* port: port/linux/game/third_person.c */
 void third_person_action_facing(short local_player_index, real_euler_angles2d *desired_facing);
@@ -1425,6 +1426,7 @@ static void get_local_player_input_blob(
 
 					if (biped &&
 						(controls_enable_crouch ||
+						source_movement_biped(player->unit_index) || /* port: Source allows full-stick crouch walk */
 						TEST_FLAG(biped->biped.flags, _biped_airborne_bit) ||
 						magnitude_squared2d(&input->throttle) < 0.98f * 0.98f))
 					{

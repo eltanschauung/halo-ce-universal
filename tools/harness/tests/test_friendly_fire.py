@@ -30,7 +30,7 @@ def generated(fault=None):
             ('policy.inc', policy), ('damage.inc', block))
 
 
-@pytest.mark.parametrize('case', ['policy', 'damage', 'parent', 'instant', 'combined', 'enemy-health'])
+@pytest.mark.parametrize('case', ['policy', 'damage', 'parent', 'instant', 'combined', 'enemy-health', 'self-explosion'])
 def test_case(case):
     status, output = run(build('friendly_fire', generated()), case)
     assert status == 0, output

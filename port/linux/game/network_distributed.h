@@ -136,6 +136,8 @@ enum
 
 	/* Fork-only messages: sent only after network_extensions.c negotiation. */
 	_distributed_message_fork_capabilities = 240,
+	/* Per-player Source movement; no core message or stock peer changes. */
+	_distributed_message_source_movement = 241,
 	_distributed_message_social_request = 244,
 	_distributed_message_social_line = 245,
 	_distributed_message_social_scores = 246,

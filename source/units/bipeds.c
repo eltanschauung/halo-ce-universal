@@ -275,6 +275,7 @@ symbols in this file:
 #include "scenario/scenario.h"
 #include "structures/structure_bsp_definitions.h"
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
+#include "source_movement.h" /* port: optional player-only Source physics */
 
 /* port: port/linux/game/network_objects.c's (a client deletes the host's
 objects on the host's word alone) */
@@ -904,6 +905,16 @@ static void biped_start_landing(
 	real velocity;
 	real velocity_range;
 	real recovery_time;
+	/* port: Source hops have no landing animation movement lock. */
+	if (source_movement_biped(biped_index))
+	{
+		if (landing_velocity >= minimum_soft_landing_velocity)
+		{
+			biped_make_footstep(biped_index, _material_effect_biped_jump_land, 0);
+			biped_make_footstep(biped_index, _material_effect_biped_jump_land, 1);
+		}
+		return;
+	}
 
 	if (landing_velocity < minimum_soft_landing_velocity)
 		return;
@@ -1848,7 +1859,8 @@ static boolean biped_jump(
 		real jump_magnitude;
 
 		jumped = TRUE;
-		jump_magnitude = definition->biped.jump_velocity;
+		/* port: TF2-sized jump with Source gravity; preserve lateral momentum. */
+		jump_magnitude = source_movement_biped(biped_index) ? SOURCE_JUMP_SPEED : definition->biped.jump_velocity;
 		if (biped->unit.player_index!=NONE)
 		{
 			struct game_globals_player_information *player_information =
@@ -2203,6 +2215,13 @@ static void biped_update_jumping(
 	struct biped_datum *biped = biped_get(biped_index);
 
 	biped_definition_get(biped->definition_index);
+	/* port: hold jump to hop on landing; no Halo six-tick recovery. */
+	if (source_movement_biped(biped_index))
+	{
+		biped->biped.landing = NONE;
+		if (TEST_FLAG(biped->unit.control_flags, _unit_control_jump_bit)) biped_jump(biped_index);
+		return;
+	}
 	if (!TEST_FLAG(biped->biped.flags, _biped_airborne_bit) &&
 		biped->biped.landing != 1)
 	{
@@ -2404,6 +2423,17 @@ static void biped_update_physics(
 		facing.j = physics->new_velocity.j =
 			physics->movement_desired.j * physics->forward.i +
 			physics->movement_desired.i * physics->forward.j;
+	}
+	/* port: replace player acceleration only, retaining swept collision and platforms. */
+	else if (source_movement_biped(physics->biped_index))
+	{
+		real_vector3d wish;
+		struct biped_datum *biped = biped_get(physics->biped_index);
+		source_movement_wish(physics->biped_index, &physics->forward, &wish);
+		physics->new_velocity = physics->velocity;
+		source_movement_step(&physics->new_velocity, &wish, &physics->ground_plane.n,
+			TEST_FLAG(in_flags, _biped_physics_in_airborne_bit),
+			TEST_FLAG(biped->unit.control_flags, _unit_control_jump_bit));
 	}
 	else if (TEST_FLAG(in_flags, _biped_physics_in_airborne_bit))
 	{
@@ -3016,6 +3046,10 @@ static void biped_update_physics(
 		physics->collision_velocity = magnitude3d(&velocity_delta);
 	}
 	physics->new_velocity.k -= physics->crouch_velocity;
+	/* port: Source uses half gravity before movement and half after collision. */
+	if (source_movement_biped(physics->biped_index) &&
+		TEST_FLAG(physics->out_flags, _biped_physics_out_airborne_bit))
+		physics->new_velocity.k -= SOURCE_GRAVITY * 0.5f;
 
 	if (TEST_FLAG(physics->in_flags, _biped_physics_in_crouched_bit) &&
 		TEST_FLAG(physics->in_flags, _biped_physics_in_trying_to_stand_bit))

@@ -105,6 +105,7 @@ symbols in this file:
 #include "damage.h"
 #include "network_social.h"
 #include "coop_damage.h" /* port: port/linux/game/coop_damage.c */
+#include "source_movement.h" /* port: self explosion damage, retaining impulse */
 #include "ai/ai.h"
 #include "cseries/errors.h"
 #include "effects/effects.h"
@@ -1812,6 +1813,8 @@ void object_cause_damage(
 					reduced_instant_damage = friendly_damage_scale;
 				/* port: scale player hits on enemies once, preserving headshots and instant kills. */
 				object_damage_scale = friendly_damage_scale * coop_enemy_damage_scale(damage, current_object_index);
+				/* port: shield/body damage only; aftermath keeps the full explosion impulse. */
+				object_damage_scale *= source_movement_self_damage(damage, current_object_index);
 				object_total_damage = total_damage * object_damage_scale;
 
 				/* port: nor does a teammate's hit kill outright (a melee from

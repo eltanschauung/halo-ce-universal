@@ -42,6 +42,8 @@ static real body_instant_scale;
 static boolean body_force_instant;
 static real chain_scale=1;
 static real enemy_scale=1;
+static real self_scale=1;
+static real source_movement_self_damage(struct data *damage,long index){return self_scale;}
 static real network_social_chain_damage_scale(struct data *damage,long index){return chain_scale;}
 static real coop_enemy_damage_scale(struct data *damage,long index){return enemy_scale;}
 static void object_deplete_body(long index) { depleted++; }
@@ -126,6 +128,7 @@ int main(int argc,char **argv)
   }
   return 0;
  }
+ if (!strcmp(argv[1],"self-explosion")) { reset();self_scale=.2f;dispatch(_friendly_damage_all,1,500,FALSE,FALSE,0);CHECK(dealt_shield==20 && dealt_body==80,"self damage must scale before shields, once");return 0;}
  if (!strcmp(argv[1],"combined")) return combined();
  if (!strcmp(argv[1],"policy")) return policy();
  if (!strcmp(argv[1],"damage")) {

@@ -4,6 +4,7 @@ static void network_profile_rgb_machine_joined(long machine) { (void)machine; }
 static void needler_balance_reset(void) {}
 static void assault_rifle_balance_reset(void) {}
 static void friendly_grenades_reset(void) {}
+static void source_movement_reset(void) {}
 static void coop_respawn_reset(void) {}
 typedef unsigned short word;
 #define HALO_PORT_MAXIMUM_NETWORK_MACHINES 128
@@ -57,17 +58,19 @@ int main(int argc,char **argv){CHECK(argc==2,"case");char const *case_name=argv[
   role=1;network_extensions_handle(NONE,(word*)wire[1],sizes[1],TRUE);CHECK(network_extensions_allows(NONE,250),"client ack");network_extensions_update();CHECK(sends==2,"hello spam");
  } else CASE("model_capability") {
   role=1;network_extensions_select_host(TRUE);network_extensions_update();
-  CHECK(((struct extension_message *)wire[0])->features==1023,"grenade collision feature not advertised");
+  CHECK(((struct extension_message *)wire[0])->features==2047,"Source movement feature not advertised");
   now+=2001;network_extensions_update();now+=2001;network_extensions_update();
-  CHECK(((struct extension_message *)wire[2])->features==511,"respawn fork fallback missing");
+  CHECK(((struct extension_message *)wire[2])->features==1023,"grenade fork fallback missing");
   now+=2001;network_extensions_update();now+=2001;network_extensions_update();
-  CHECK(((struct extension_message *)wire[4])->features==255,"old AR fork fallback missing");
+  CHECK(((struct extension_message *)wire[4])->features==511,"respawn fork fallback missing");
   now+=2001;network_extensions_update();now+=2001;network_extensions_update();
-  CHECK(((struct extension_message *)wire[6])->features==127,"Needler fork fallback missing");
+  CHECK(((struct extension_message *)wire[6])->features==255,"old AR fork fallback missing");
   now+=2001;network_extensions_update();now+=2001;network_extensions_update();
-  CHECK(((struct extension_message *)wire[8])->features==63,"model fork fallback missing");
+  CHECK(((struct extension_message *)wire[8])->features==127,"Needler fork fallback missing");
   now+=2001;network_extensions_update();now+=2001;network_extensions_update();
-  CHECK(((struct extension_message *)wire[10])->features==31,"old fork fallback missing");
+  CHECK(((struct extension_message *)wire[10])->features==63,"model fork fallback missing");
+  now+=2001;network_extensions_update();now+=2001;network_extensions_update();
+  CHECK(((struct extension_message *)wire[12])->features==31,"old fork fallback missing");
   CHECK(!network_extensions_allows(NONE,252),"model feature enabled without acknowledgement");
   role=2;negotiate(31);CHECK(!network_extensions_allows(1,252),"model sent to old fork");
   network_extensions_reset();negotiate(63);CHECK(network_extensions_allows(1,252),"model feature not enabled");
@@ -105,6 +108,15 @@ int main(int argc,char **argv){CHECK(argc==2,"case");char const *case_name=argv[
   CHECK(network_extensions_balance_matches(_distributed_message_grenade_collision_policy),"new peers did not enable filtering");
   network_extensions_machine_joined(2);
   CHECK(!network_extensions_balance_matches(_distributed_message_grenade_collision_policy),"reused slot kept filtering");
+ } else CASE("source") {
+  negotiate(EXT_ALL);
+  struct extension_message m=hello();m.features=1023;network_extensions_handle(2,(word*)&m,sizeof(m),TRUE);
+  CHECK(network_extensions_allows(1,_distributed_message_source_movement),"new fork has no movement capability");
+  CHECK(!network_extensions_allows(2,_distributed_message_source_movement),"legacy peer enabled Source");
+  CHECK(network_extensions_allows(2,_distributed_message_needler_policy),"legacy balance capability lost");
+  sends=0;struct {struct distributed_message_header header;word enabled,reserved;} policy={{0},1,0};
+  distributed_send(&policy,_distributed_message_source_movement,1,sizeof(policy),_distributed_to_clients_reliably);
+  CHECK(sends==1&&recipients[0]==1,"movement policy escaped to stock peer");
  } else CASE("partial") {
   negotiate(EXT_SUICIDE);CHECK(network_extensions_allows(1,_distributed_message_suicide_request),"missing selected feature");CHECK(network_extensions_allows(1,_distributed_message_aim_assist_policy)&&policies==1,"core aim policy requires fork negotiation");
   CHECK(!network_extensions_allows(2,_distributed_message_suicide_request),"other machine enabled");
@@ -114,7 +126,7 @@ int main(int argc,char **argv){CHECK(argc==2,"case");char const *case_name=argv[
   network_extensions_handle(1,(word*)&m,17,TRUE);network_extensions_handle(1,(word*)&m,16,FALSE);
   network_extensions_handle(NONE,(word*)&m,16,TRUE);network_extensions_handle(3,(word*)&m,16,TRUE);
   m.magic++;network_extensions_handle(1,(word*)&m,16,TRUE);m=hello();m.revision++;network_extensions_handle(1,(word*)&m,16,TRUE);
-  m=hello();m.features=1024;network_extensions_handle(1,(word*)&m,16,TRUE);m=hello();m.header.count=2;network_extensions_handle(1,(word*)&m,16,TRUE);
+  m=hello();m.features=2048;network_extensions_handle(1,(word*)&m,16,TRUE);m=hello();m.header.count=2;network_extensions_handle(1,(word*)&m,16,TRUE);
   CHECK(!sends&&!network_extensions_allows(1,250),"malformed negotiation accepted");
   role=1;m=hello();network_extensions_select_host(TRUE);network_extensions_handle(NONE,(word*)&m,16,TRUE);CHECK(!network_extensions_allows(NONE,250),"unsolicited ack");
  } else CASE("reset") {

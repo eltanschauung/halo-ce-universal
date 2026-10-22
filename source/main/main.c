@@ -3579,6 +3579,8 @@ static boolean main_loop_iteration(
 			network_voice_update();
 			/* port: apply and replicate the host's mouse aim-assist policy. */
 			network_extensions_update();
+			/* port: negotiated per-player Source movement, stock on upstream hosts. */
+			{ extern void source_movement_update(void); source_movement_update(); }
 			/* port: stock Needler in mixed lobbies (port/linux/game/needler_balance.c). */
 			{ extern void needler_balance_update(void); needler_balance_update(); }
 			/* port: negotiate the assault rifle buff separately from the Needler. */
