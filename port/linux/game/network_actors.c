@@ -43,6 +43,7 @@ an AI unit the same way it kills a player's.
 #include "units/unit_control_data.h"
 #include "network_coop.h"
 #include "network_distributed.h"
+#include "network_projectiles.h"
 
 #include <math.h>
 
@@ -863,8 +864,11 @@ void network_actors_drive(
 			client_actors[index--] = client_actors[--client_actor_count];
 			continue;
 		}
-		/* vehicles follow the host's transform instead (network_objects.c) */
-		if (object_get(actor->unit_index)->object.type == _object_type_vehicle)
+		/* Vehicle aiming/firing still runs. Its physics follows the host's
+		transform separately (network_objects.c, vehicles.c). Player-driven
+		vehicles keep the players' input path, including local prediction. */
+		if (object_get(actor->unit_index)->object.type == _object_type_vehicle &&
+			!network_objects_vehicle_follows_host(actor->unit_index))
 			continue;
 		if (!actor->driven)
 		{

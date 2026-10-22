@@ -143,6 +143,7 @@ symbols in this file:
 /* ---------- headers */
 
 #include "cseries.h"
+#include "network_projectiles.h" /* port: host-driven vehicle physics */
 #include "cseries/errors.h"
 #include "cseries/profile.h"
 #include "vehicles.h"
@@ -2461,6 +2462,10 @@ boolean vehicle_update(
 	definition = vehicle_specific_definition_get(vehicle->definition_index);
 
 	profile_enter(vehicle_update_section);
+	/* port: AI controls include firing, but must not steer a second vehicle
+	simulation on clients. Keep its animation and unit/weapon updates. */
+	if (network_objects_vehicle_follows_host(vehicle_index))
+		goto animate;
 
 	if (vehicle->object.parent_object_index!=NONE)
 	{

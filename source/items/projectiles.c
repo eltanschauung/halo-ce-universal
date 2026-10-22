@@ -121,6 +121,7 @@ symbols in this file:
 #include "projectile_definitions.h"
 #include "needler_balance.h" /* port: port/linux/game/needler_balance.c */
 #include "friendly_grenades.h" /* port: port/linux/game/friendly_grenades.c */
+#include "network_projectiles.h" /* port: host-driven enemy projectile visuals */
 
 #include "ai/ai.h"
 #include "cseries/profile.h"
@@ -395,6 +396,8 @@ void projectiles_delete_all(
 void projectile_delete(
 	long projectile_index)
 {
+	/* port: including silent deletion and projectiles that hit this tick. */
+	network_projectiles_deleted(projectile_index);
 	return;
 }
 
@@ -667,6 +670,60 @@ void projectile_accelerate(
 	return;
 }
 
+/* port: both simulated shots and host-driven replicas use the original
+flyby test. A visual replica skips physics, not its positional audio. */
+boolean projectile_play_flyby_sound(long projectile_index, real_vector3d const *movement,
+    struct location const *game_location, long ignore_object_index)
+{
+	struct projectile_datum *projectile = projectile_get(projectile_index);
+	struct projectile_definition const *definition = projectile_definition_get(projectile->definition_index);
+	boolean flyby_sound_played = FALSE;
+
+	if (definition->projectile.flyby_sound.index != NONE)
+	{
+		short local_player_index;
+
+		for (local_player_index = 0; local_player_index < MAXIMUM_LOCAL_PLAYERS; local_player_index++)
+		{
+			if (local_player_get_player_index(local_player_index) != NONE)
+			{
+				long unit_index = player_get(local_player_get_player_index(local_player_index))->unit_index;
+
+				if (unit_index != NONE && unit_index != ignore_object_index)
+				{
+					real_point3d const *listener_position = &object_get(unit_index)->object.bounding_sphere_center;
+					real maximum_distance = sound_definition_get_maximum_distance(definition->projectile.flyby_sound.index);
+					real_vector3d listener_vector;
+					real_vector3d parallel;
+					real_vector3d perpendicular;
+					real distance_along_path;
+
+					listener_vector.i = listener_position->x - projectile->object.position.x;
+					listener_vector.j = listener_position->y - projectile->object.position.y;
+					listener_vector.k = listener_position->z - projectile->object.position.z;
+					component_vectors_from_direction3d(&listener_vector, movement, &parallel, &perpendicular);
+					distance_along_path = dot_product3d(&parallel, movement);
+					if (distance_along_path >= 0.0f &&
+						distance_along_path < magnitude_squared3d(movement) &&
+						magnitude_squared3d(&perpendicular) < maximum_distance * maximum_distance)
+					{
+						struct sound_location location;
+
+						point_from_line3d(listener_position, &perpendicular, -1.0f, &location.position);
+						location.forward = *movement;
+						normalize3d(&location.forward);
+						location.translational_velocity = *global_zero_vector3d;
+						location.game_location = *game_location;
+						unattached_impulse_sound_new(definition->projectile.flyby_sound.index, &location, 1.0f);
+						flyby_sound_played = TRUE;
+					}
+				}
+			}
+		}
+	}
+	return flyby_sound_played;
+}
+
 boolean projectile_update(
 	long projectile_index)
 {
@@ -693,6 +750,11 @@ boolean projectile_update(
 		projectile->object.attachment_indices[projectile->projectile.tracer_attachment_index] = NONE;
 		projectile->projectile.tracer_attachment_index = NONE;
 	}
+
+	/* port: snapshots carry the host's fuse/pose. No local collisions or
+	detonation may remove its warning sound before the host detonates it. */
+	if (network_projectiles_update(projectile_index))
+		return TRUE;
 
 	projectile->projectile.arming_time += projectile->projectile.arming_time_delta;
 	projectile->projectile.deceleration_timer += projectile->projectile.deceleration_timer_delta;
@@ -976,49 +1038,9 @@ boolean projectile_update(
 			vector_from_points3d(&projectile->object.position, &new_position, &movement);
 			projectile->projectile.odometer += magnitude3d(&movement);
 
-			if (!flyby_sound_played &&
-				definition->projectile.flyby_sound.index != NONE)
-			{
-				short local_player_index;
-
-				for (local_player_index = 0; local_player_index < MAXIMUM_LOCAL_PLAYERS; local_player_index++)
-				{
-					if (local_player_get_player_index(local_player_index) != NONE)
-					{
-						long unit_index = player_get(local_player_get_player_index(local_player_index))->unit_index;
-
-						if (unit_index != NONE && unit_index != ignore_object_index)
-						{
-							real_point3d const *listener_position = &object_get(unit_index)->object.bounding_sphere_center;
-							real maximum_distance = sound_definition_get_maximum_distance(definition->projectile.flyby_sound.index);
-							real_vector3d listener_vector;
-							real_vector3d parallel;
-							real_vector3d perpendicular;
-							real distance_along_path;
-
-							listener_vector.i = listener_position->x - projectile->object.position.x;
-							listener_vector.j = listener_position->y - projectile->object.position.y;
-							listener_vector.k = listener_position->z - projectile->object.position.z;
-							component_vectors_from_direction3d(&listener_vector, &movement, &parallel, &perpendicular);
-							distance_along_path = dot_product3d(&parallel, &movement);
-							if (distance_along_path >= 0.0f &&
-								distance_along_path < magnitude_squared3d(&movement) &&
-								magnitude_squared3d(&perpendicular) < maximum_distance * maximum_distance)
-							{
-								struct sound_location location;
-
-								point_from_line3d(listener_position, &perpendicular, -1.0f, &location.position);
-								location.forward = movement;
-								normalize3d(&location.forward);
-								location.translational_velocity = *global_zero_vector3d;
-								location.game_location = collision.location;
-								unattached_impulse_sound_new(definition->projectile.flyby_sound.index, &location, 1.0f);
-								flyby_sound_played = TRUE;
-							}
-						}
-					}
-				}
-			}
+			if (!flyby_sound_played)
+				flyby_sound_played = projectile_play_flyby_sound(projectile_index, &movement,
+					&collision.location, ignore_object_index);
 
 			if (TEST_FLAG(definition->projectile.flags, _projectile_oriented_along_velocity_bit) &&
 				(projectile->object.translational_velocity.i != 0.0f || projectile->object.translational_velocity.j != 0.0f || projectile->object.translational_velocity.k != 0.0f))
@@ -1240,6 +1262,11 @@ static void projectile_effect_new(
 	real scale,
 	real material_effect_scale)
 {
+	/* port: clients show the actual impact, including bounce/stick effects. */
+	network_projectiles_effect(projectile_index, definition_index,
+		collision->type == _collision_result_object ? collision->object_index : NONE,
+		collision->type == _collision_result_object ? collision->node_index : NONE, NUMBER_OF_EFFECT_MARKERS,
+		marker_points, marker_forwards, scale, material_effect_scale);
 	if (collision->type == _collision_result_object)
 	{
 		effect_new_attached_from_markers(
@@ -1439,6 +1466,9 @@ static void projectile_detonate(
 	object_get_orientation(projectile_index, &marker_forwards[0], &up);
 	marker_points[1] = marker_points[0];
 	marker_forwards[1] = *global_down3d;
+	/* port: send the effect selected above (including a supercombine). */
+	network_projectiles_effect(projectile_index, effect_definition_index, NONE, NONE, NUMBEROF(marker_names),
+		marker_points, marker_forwards, 0.f, 0.f);
 	effect_new_unattached_from_markers(
 		effect_definition_index,
 		projectile->object.owner_object_index,
@@ -1480,6 +1510,9 @@ static void projectile_detonate(
 				struct projectile_material_response_definition) :
 			&default_projectile_material_response;
 
+		/* port: the host's material-specific terminal effect, too. */
+		network_projectiles_effect(projectile_index, material_response->detonation_effect.index, NONE, NONE, NUMBEROF(marker_names),
+			marker_points, marker_forwards, 0.f, 0.f);
 		effect_new_unattached_from_markers(
 			material_response->detonation_effect.index,
 			projectile->object.owner_object_index,

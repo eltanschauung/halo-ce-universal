@@ -14,6 +14,7 @@
 #include "assault_rifle_balance.h"
 #include "friendly_grenades.h"
 #include "source_movement.h"
+#include "network_projectiles.h"
 #include <string.h>
 
 boolean network_distributed_client_send_reliably(void *, word);
@@ -23,7 +24,7 @@ enum
     EXT_AIM = 1, EXT_SUICIDE = 2, EXT_DEATH = 4, EXT_SOCIAL = 8,
     EXT_SPRAY = 16, EXT_MODELS = 32, EXT_NEEDLER = 64, EXT_ASSAULT_RIFLE = 128,
     EXT_RESPAWN = 256, EXT_GRENADE_COLLISION = 512, EXT_SOURCE_MOVEMENT = 1024,
-    EXT_ALL = 2047, EXT_REVISION = 1
+    EXT_PROJECTILES = 2048, EXT_ALL = 4095, EXT_REVISION = 1
 };
 #define EXT_MAGIC 0x45544C45UL /* ELTE */
 struct extension_message
@@ -55,11 +56,13 @@ void network_extensions_reset(void)
     assault_rifle_balance_reset();
     friendly_grenades_reset();
     source_movement_reset();
+    network_projectiles_reset();
 }
 
 void network_extensions_machine_joined(long machine)
 {
 	network_profile_rgb_machine_joined(machine);
+    network_projectiles_machine_joined(machine);
     if (machine >= 0 && machine < HALO_PORT_MAXIMUM_NETWORK_MACHINES)
         machine_features[machine] = 0;
 }
@@ -82,6 +85,7 @@ word network_extensions_feature(byte type)
     case _distributed_message_assault_rifle_policy: return EXT_ASSAULT_RIFLE;
     case _distributed_message_grenade_collision_policy: return EXT_GRENADE_COLLISION;
     case _distributed_message_source_movement: return EXT_SOURCE_MOVEMENT;
+    case _distributed_message_projectiles: return EXT_PROJECTILES;
     default: return 0;
     }
 }
@@ -135,12 +139,12 @@ void network_extensions_update(void)
     message.magic = EXT_MAGIC;
     message.revision = EXT_REVISION;
     /* Older forks reject unknown bits: retry their original feature set. */
-    message.features = hello_attempts < 2 ? EXT_ALL : hello_attempts < 4 ? 1023 : hello_attempts < 6 ? 511 : hello_attempts < 8 ? 255 : hello_attempts < 10 ? 127 : hello_attempts < 12 ? 63 : 31;
+    message.features = hello_attempts < 2 ? EXT_ALL : hello_attempts < 4 ? 2047 : hello_attempts < 6 ? 1023 : hello_attempts < 8 ? 511 : hello_attempts < 10 ? 255 : hello_attempts < 12 ? 127 : hello_attempts < 14 ? 63 : 31;
     build_message_header(&message.header.header, sizeof(message), 2, 0);
     if (network_distributed_client_send_reliably(&message, sizeof(message)))
     {
         hello_sent = TRUE;
-        if (hello_attempts < 12) hello_attempts++;
+        if (hello_attempts < 14) hello_attempts++;
         last_hello = now;
     }
 }

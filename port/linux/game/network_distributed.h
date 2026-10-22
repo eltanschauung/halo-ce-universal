@@ -158,6 +158,8 @@ enum
 	_distributed_message_needler_policy = 253,
 	/* Optional host assault rifle rules, independently negotiated. */
 	_distributed_message_assault_rifle_policy = 254,
+	/* Optional authoritative co-op AI projectiles; never sent to stock peers. */
+	_distributed_message_projectiles = 255,
 
 	NUMBER_OF_DISTRIBUTED_MESSAGES
 };

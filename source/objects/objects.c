@@ -149,6 +149,7 @@ struct dump_datum
 makes the host's objects at the host's datum indices, and deletes them only
 on the host's word */
 long network_objects_new_object_index(void);
+#include "network_projectiles.h" /* port: optional host-created enemy projectiles */
 boolean network_objects_creating_host_object(void);
 boolean network_objects_may_delete(long object_index);
 boolean network_objects_client_deleting(void);
@@ -3447,6 +3448,11 @@ long object_new(
 {
 	long object_index = NONE;
 	long definition_index = data->definition_index;
+
+	/* port: a supporting co-op host supplies the actual AI launch, not a
+	second launch from this client's delayed controls/absent AI solver. */
+	if (network_projectiles_suppress(data))
+		return NONE;
 
 	match_assert_valid_real_point3d("c:\\halo\\SOURCE\\objects\\objects.c", 618, &data->position)
 	match_assert_valid_real_vector3d_axes2("c:\\halo\\SOURCE\\objects\\objects.c", 619, &data->forward, &data->up);

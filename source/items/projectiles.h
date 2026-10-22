@@ -121,6 +121,9 @@ boolean projectile_aim_ballistic(
 	real *result_distance,
 	real *result_vertical_velocity,
 	real *result_horizontal_velocity);
+/* port: the same pass-by sound for a simulated or host-driven flight. */
+boolean projectile_play_flyby_sound(long projectile_index, real_vector3d const *movement,
+    struct location const *game_location, long ignore_object_index);
 void projectile_accelerate(
 	long projectile_index,
 	union real_vector3d const *acceleration);

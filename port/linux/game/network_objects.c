@@ -700,6 +700,11 @@ static boolean distributed_vehicle_unsteered(
 		unit_get(vehicle->unit.driver_object_index)->unit.player_index == NONE;
 }
 
+boolean network_objects_vehicle_follows_host(long object_index)
+{
+	return network_game_distributed_client() && distributed_vehicle_unsteered(object_index);
+}
+
 /* the object if it is a body (a dead biped), else NULL */
 static struct biped_datum *distributed_body_get(
 	long object_index)

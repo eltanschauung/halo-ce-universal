@@ -58,6 +58,7 @@ machine (their datum identifiers need not be).
 #include "needler_balance.h"
 #include "assault_rifle_balance.h"
 #include "source_movement.h"
+#include "network_projectiles.h"
 #include "custom_models.h"
 #include "cseries.h"
 #include "friendly_grenades.h"
@@ -3875,6 +3876,7 @@ void network_distributed_tick(
 		profile_scope(distributed_tick_apply_predictions_section, distributed_apply_predictions();)
 		profile_scope(distributed_tick_apply_vehicle_predictions_section, network_objects_apply_vehicle_predictions();)
 		profile_scope(distributed_tick_objects_host_tick_section, network_objects_host_tick();)
+		network_projectiles_host_tick();
 		profile_scope(distributed_tick_plan_players_section, distributed_host_plan_players();)
 		profile_scope(distributed_tick_damage_host_tick_section, network_damage_host_tick();)
 		if (distributed_statistics_due || game_time_get() % STATISTICS_INTERVAL_TICKS == 0)
@@ -3908,6 +3910,7 @@ void network_distributed_tick(
 		profile_scope(distributed_tick_send_inputs_section, distributed_client_send_inputs();)
 		profile_scope(distributed_tick_send_predictions_section, distributed_client_send_predictions();)
 		profile_scope(distributed_tick_objects_client_tick_section, network_objects_client_tick();)
+		network_projectiles_client_tick();
 		profile_scope(distributed_tick_damage_client_tick_section, network_damage_client_tick();)
 		profile_scope(distributed_tick_coop_client_tick_section, network_coop_client_tick();)
 	}
@@ -4528,6 +4531,11 @@ void network_distributed_handle_message(
 		}
 		if (!network_extensions_allows(machine_index, header.type))
 			return;
+		if (header.type == _distributed_message_projectiles)
+		{
+			network_projectiles_handle(machine_index, message, size, reliable && !distributed_handling_batch);
+			return;
+		}
 		if (header.type == _distributed_message_coop_vehicle_effect)
 		{
 			coop_vehicle_effects_handle(machine_index, message, size, reliable && !distributed_handling_batch);

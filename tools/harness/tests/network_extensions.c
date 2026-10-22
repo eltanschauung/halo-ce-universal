@@ -5,6 +5,8 @@ static void needler_balance_reset(void) {}
 static void assault_rifle_balance_reset(void) {}
 static void friendly_grenades_reset(void) {}
 static void source_movement_reset(void) {}
+static void network_projectiles_reset(void) {}
+static void network_projectiles_machine_joined(long machine) {}
 static void coop_respawn_reset(void) {}
 typedef unsigned short word;
 #define HALO_PORT_MAXIMUM_NETWORK_MACHINES 128
@@ -21,9 +23,9 @@ static struct player_datum {struct {short machine_index;}network_player_data;}lo
 static long local_player_get_player_index(short local){return 0;}
 static struct player_datum *player_try_and_get(long index){return &local_player;}
 static unsigned long now=1000;
-static byte wire[16][256];
-static long recipients[16];
-static word sizes[16];
+static byte wire[32][256];
+static long recipients[32];
+static word sizes[32];
 static struct {long sent;} distributed_statistics;
 static int game_connection(void){return role;}
 static boolean game_in_progress(void){return playing;}
@@ -31,7 +33,7 @@ static boolean main_menu_is_active(void){return menu;}
 static long game_time_get(void){return 30;}
 static unsigned long system_milliseconds(void){return now;}
 static void build_message_header(word *h,word size,byte type,byte flags){*h=(size<<4)|(type<<2)|flags;}
-static void record(long peer,void const *data,word size){CHECK(sends<16,"send overflow");memcpy(wire[sends],data,size);recipients[sends]=peer;sizes[sends++]=size;}
+static void record(long peer,void const *data,word size){CHECK(sends<32,"send overflow");memcpy(wire[sends],data,size);recipients[sends]=peer;sizes[sends++]=size;}
 boolean network_distributed_client_send_reliably(void *data,word size){record(NONE,data,size);return TRUE;}
 static void network_distributed_server_send_to_machine_reliably(long peer,void *data,word size){record(peer,data,size);}
 static void network_distributed_server_send_to_all_reliably(void *data,word size){record(1,data,size);record(2,data,size);}
@@ -58,19 +60,21 @@ int main(int argc,char **argv){CHECK(argc==2,"case");char const *case_name=argv[
   role=1;network_extensions_handle(NONE,(word*)wire[1],sizes[1],TRUE);CHECK(network_extensions_allows(NONE,250),"client ack");network_extensions_update();CHECK(sends==2,"hello spam");
  } else CASE("model_capability") {
   role=1;network_extensions_select_host(TRUE);network_extensions_update();
-  CHECK(((struct extension_message *)wire[0])->features==2047,"Source movement feature not advertised");
+  CHECK(((struct extension_message *)wire[0])->features==4095,"projectile feature not advertised");
   now+=2001;network_extensions_update();now+=2001;network_extensions_update();
-  CHECK(((struct extension_message *)wire[2])->features==1023,"grenade fork fallback missing");
+  CHECK(((struct extension_message *)wire[2])->features==2047,"Source movement fork fallback missing");
   now+=2001;network_extensions_update();now+=2001;network_extensions_update();
-  CHECK(((struct extension_message *)wire[4])->features==511,"respawn fork fallback missing");
+  CHECK(((struct extension_message *)wire[4])->features==1023,"grenade fork fallback missing");
   now+=2001;network_extensions_update();now+=2001;network_extensions_update();
-  CHECK(((struct extension_message *)wire[6])->features==255,"old AR fork fallback missing");
+  CHECK(((struct extension_message *)wire[6])->features==511,"respawn fork fallback missing");
   now+=2001;network_extensions_update();now+=2001;network_extensions_update();
-  CHECK(((struct extension_message *)wire[8])->features==127,"Needler fork fallback missing");
+  CHECK(((struct extension_message *)wire[8])->features==255,"old AR fork fallback missing");
   now+=2001;network_extensions_update();now+=2001;network_extensions_update();
-  CHECK(((struct extension_message *)wire[10])->features==63,"model fork fallback missing");
+  CHECK(((struct extension_message *)wire[10])->features==127,"Needler fork fallback missing");
   now+=2001;network_extensions_update();now+=2001;network_extensions_update();
-  CHECK(((struct extension_message *)wire[12])->features==31,"old fork fallback missing");
+  CHECK(((struct extension_message *)wire[12])->features==63,"model fork fallback missing");
+  now+=2001;network_extensions_update();now+=2001;network_extensions_update();
+  CHECK(((struct extension_message *)wire[14])->features==31,"old fork fallback missing");
   CHECK(!network_extensions_allows(NONE,252),"model feature enabled without acknowledgement");
   role=2;negotiate(31);CHECK(!network_extensions_allows(1,252),"model sent to old fork");
   network_extensions_reset();negotiate(63);CHECK(network_extensions_allows(1,252),"model feature not enabled");
@@ -117,6 +121,15 @@ int main(int argc,char **argv){CHECK(argc==2,"case");char const *case_name=argv[
   sends=0;struct {struct distributed_message_header header;word enabled,reserved;} policy={{0},1,0};
   distributed_send(&policy,_distributed_message_source_movement,1,sizeof(policy),_distributed_to_clients_reliably);
   CHECK(sends==1&&recipients[0]==1,"movement policy escaped to stock peer");
+ } else CASE("projectiles") {
+  negotiate(EXT_ALL);
+  struct extension_message m=hello();m.features=2047;network_extensions_handle(2,(word*)&m,sizeof(m),TRUE);
+  CHECK(network_extensions_allows(1,_distributed_message_projectiles),"new peer lacks projectile stream");
+  CHECK(!network_extensions_allows(2,_distributed_message_projectiles),"old peer received private projectile stream");
+  CHECK(network_extensions_allows(2,_distributed_message_source_movement),"old movement support lost");
+  sends=0;struct {struct distributed_message_header header;long payload;} msg={{0},1};
+  distributed_send(&msg,_distributed_message_projectiles,1,sizeof(msg),_distributed_to_clients_reliably);
+  CHECK(sends==1&&recipients[0]==1,"projectile traffic escaped negotiation");
  } else CASE("partial") {
   negotiate(EXT_SUICIDE);CHECK(network_extensions_allows(1,_distributed_message_suicide_request),"missing selected feature");CHECK(network_extensions_allows(1,_distributed_message_aim_assist_policy)&&policies==1,"core aim policy requires fork negotiation");
   CHECK(!network_extensions_allows(2,_distributed_message_suicide_request),"other machine enabled");
@@ -126,7 +139,7 @@ int main(int argc,char **argv){CHECK(argc==2,"case");char const *case_name=argv[
   network_extensions_handle(1,(word*)&m,17,TRUE);network_extensions_handle(1,(word*)&m,16,FALSE);
   network_extensions_handle(NONE,(word*)&m,16,TRUE);network_extensions_handle(3,(word*)&m,16,TRUE);
   m.magic++;network_extensions_handle(1,(word*)&m,16,TRUE);m=hello();m.revision++;network_extensions_handle(1,(word*)&m,16,TRUE);
-  m=hello();m.features=2048;network_extensions_handle(1,(word*)&m,16,TRUE);m=hello();m.header.count=2;network_extensions_handle(1,(word*)&m,16,TRUE);
+  m=hello();m.features=4096;network_extensions_handle(1,(word*)&m,16,TRUE);m=hello();m.header.count=2;network_extensions_handle(1,(word*)&m,16,TRUE);
   CHECK(!sends&&!network_extensions_allows(1,250),"malformed negotiation accepted");
   role=1;m=hello();network_extensions_select_host(TRUE);network_extensions_handle(NONE,(word*)&m,16,TRUE);CHECK(!network_extensions_allows(NONE,250),"unsolicited ack");
  } else CASE("reset") {
