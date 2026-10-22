@@ -295,7 +295,10 @@ and objects push the camera in, as the game's vehicle cameras are.
 Only the first local player's view and controls change. Co-op sends the
 held aim through its existing player actions; no new messages are needed.
 
-In the menus, the mouse moves a pointer:
+In the menus, the mouse moves a pointer, a blue arrow
+(`port/assets/cursor/menu_cursor.png`) in place of the system's, sized to
+the window as Halo PC's was (32 of the menus' 480 lines tall):
+
 
 - The item below the pointer gets the focus.
 - A left click selects the item. On a setting with values, a click on the
