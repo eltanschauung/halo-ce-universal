@@ -28,11 +28,14 @@ landing movement lock or six-ground-tick jump recovery. No extra horizontal
 speed is awarded simply for holding forward in the air. Air strafing adds
 velocity according to its projection on the wish direction.
 
-Fall-damage checks convert velocity by sqrt(stock gravity / Source gravity),
-keeping Halo's fall-distance thresholds without altering actual movement.
-Source players skip the airborne maximum-speed instant kill: campaign scripts
-can deliberately delay a transition after a drop trigger, as on Keyes.
-Landing damage and world kill volumes remain active.
+Landing damage follows TF2's FlPlayerFallDamage with randomness disabled:
+no damage up to 650 Source units/s, then speed / 6000 of maximum health.
+This damages health directly without draining shields, and ignores Halo's
+fall-tag random range and material/difficulty multipliers. Scripted fall
+immunities and invulnerability remain effective. Damage follows the normal
+host-authoritative vitality, effects and killfeed pipelines. Source players
+still skip the airborne maximum-speed instant kill, allowing scripted drops
+such as Keyes to reach their delayed transition. World kill volumes remain.
 
 Gravity is split around collision movement. Prediction's ballistic bounds
 use the selected player's gravity and jump speed; the existing host-derived
@@ -88,7 +91,7 @@ These primary sources document the algorithms and the integration design:
   `Accelerate`, `AirAccelerate`, `Friction`, `StartGravity`, `FinishGravity`.
 - Valve's [movement defaults](https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/game/shared/movevars_shared.cpp).
 - Valve's [TF2 player damage/force implementation](https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/game/server/tf/tf_player.cpp)
-  (`DamageForce`, `ApplyPushFromDamage`) and [radius damage](https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/game/shared/tf/tf_gamerules.cpp).
+  (`DamageForce`, `ApplyPushFromDamage`) and [radius/fall damage](https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/game/shared/tf/tf_gamerules.cpp).
 - Valve's [TF2 movement](https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/game/shared/tf/tf_gamemovement.cpp)
   for the jump scale; HL2 and TF2 are distinct games, rather than one exact
   movement specification.
@@ -119,3 +122,13 @@ of 0.21094 (host) and 0.21084 (client) at simulated 200 ms RTT, exercising the
 existing damage aftermath replay. This is a controlled native probe, not a
 claim of exact Source networking or every weapon interaction. Android/web build
 targets are unavailable in the local Windows configuration.
+
+## Deterministic fall-damage validation
+
+Boundary checks cover 650 and 651 Source units/s, 15% health at 900, 20%
+at 1200, repeatability and lethal fractions. Production body-damage routing
+checks maximum-health scaling, material override, stock/player-damage exclusion
+and exact-zero death. Controlled native drops removed 0%, 14.392%, 14.392%
+and 20.592% health, respectively; all left shields full. The repeated drop
+produced identical damage. Observed pre-impact sampled speeds are slightly
+below the actual collision speed because gravity/collision runs between samples.

@@ -1245,6 +1245,17 @@ static void object_damage_body(
 		damage_material_type_error(damage_material->material_type);
 	}
 
+	/* port: Source landing events carry a max-health fraction, unaffected by
+	   Halo's collision material multipliers or difficulty. Invulnerability stays below. */
+	if (damage_definition->category == _damage_category_falling &&
+		damage->owner_player_index == NONE &&
+		TEST_FLAG(damage->flags, _damage_bypasses_shields_bit) && source_movement_biped(object_index))
+	{
+		actual_damage = MAX(damage->scale, 0.f);
+		partial_instant_damage = actual_damage; /* exact-zero health is lethal */
+		damage_amount = maximum_body_vitality * actual_damage;
+	}
+
 	if (!TEST_FLAG(object->object.damage_flags, _object_cannot_take_damage_bit))
 	{
 		if (force_instant_damage) /* port: respect invulnerability before applying the fraction */
@@ -1508,6 +1519,14 @@ void object_cause_damage(
 	if (damage->owner_player_index != NONE)
 		global_debug_damage_object_index = object_index;
 
+	/* port: deterministic Source fall damage never samples the tag's RNG. */
+	if (damage_definition->category == _damage_category_falling &&
+		damage->owner_player_index == NONE &&
+		TEST_FLAG(damage->flags, _damage_bypasses_shields_bit) && source_movement_biped(object_index))
+	{
+		total_damage = MAX(damage->scale, 0.f) * object_get_maximum_body_vitality(object_index, TRUE);
+	}
+	else
 	{
 		real random_damage = real_random_range(
 			damage_definition->damage_lower_bound,

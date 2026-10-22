@@ -81,3 +81,11 @@ void source_movement_blast_impulse(real_point3d const *feet, real_point3d const 
     impulse->j = direction.j * force;
     impulse->k = direction.k * force;
 }
+
+/* TF2 FlPlayerFallDamage with tf_fall_damage_disablespread enabled.
+   Return a fraction of maximum health, independent of class/max-health size. */
+real source_movement_fall_fraction(real velocity)
+{
+    real speed = velocity * SOURCE_UNITS_PER_WORLD * TICKS_PER_SECOND;
+    return speed > 650.f ? speed / 6000.f : 0.f;
+}

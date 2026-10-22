@@ -12,7 +12,7 @@ void source_movement_blast_impulse(real_point3d const *feet, real_point3d const 
     real crouch, boolean airborne, boolean rocket, real damage, real radius, real_vector3d *impulse);
 void source_movement_reset(void);
 void source_movement_update(void);
-real source_movement_fall_velocity(long biped_index, real velocity, real stock_gravity);
+real source_movement_fall_fraction(real collision_velocity);
 void source_movement_handle(long machine, word const *data, word size, boolean reliable);
 boolean source_movement_player(long player_index);
 boolean source_movement_biped(long biped_index);

@@ -815,9 +815,21 @@ static void biped_falling_damage(
 		TEST_FLAG(definition->biped.flags, _biped_immune_to_falling_damage_bit);
 	real falling_velocity = biped->object.translational_velocity.k;
 
-	/* port: Source gravity must not turn scripted safe drops into early deaths. */
-	collision_velocity = source_movement_fall_velocity(biped_index, collision_velocity, global_gravity);
-	falling_velocity = source_movement_fall_velocity(biped_index, falling_velocity, global_gravity);
+	/* port: TF2's deterministic landing damage, as a fraction of maximum health.
+	   Keep the normal damage pipeline and all scripted fall immunities. */
+	if (source_movement_biped(biped_index))
+	{
+		real fraction = source_movement_fall_fraction(collision_velocity);
+		if (!immune && !cheat.jetpack && fraction > 0.f)
+		{
+			struct damage_data damage;
+			damage_data_new(&damage, falling_damage->falling_damage.index);
+			damage.scale = fraction;
+			SET_FLAG(damage.flags, _damage_bypasses_shields_bit, TRUE);
+			object_cause_damage(&damage, biped_index, NONE, NONE, NONE, NULL);
+		}
+		return;
+	}
 
 	if (!cheat.jetpack || biped->unit.player_index == NONE)
 	{

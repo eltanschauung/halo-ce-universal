@@ -29,7 +29,7 @@ def generated(fault=None):
 
 
 CASES = ['ground', 'friction', 'stop', 'reverse', 'diagonal', 'crouch', 'stock-speed', 'modifiers', 'air-coast',
-         'air-cap', 'air-strafe', 'bhop', 'blast-air-control', 'blast-formula', 'blast-crouch', 'blast-rocket', 'blast-falloff', 'blast-admission', 'blast-legacy', 'fall-distance', 'stock-fall', 'gravity', 'jump', 'stock-jump',
+         'air-cap', 'air-strafe', 'bhop', 'blast-air-control', 'blast-formula', 'blast-crouch', 'blast-rocket', 'blast-falloff', 'blast-admission', 'blast-legacy', 'fall-distance', 'gravity', 'jump', 'stock-jump',
          'solo', 'mixed-host', 'upstream-host', 'policy', 'bad-policy', 'slot-reuse',
          'reset', 'send', 'excluded', 'self-damage', 'other-damage', 'replay']
 

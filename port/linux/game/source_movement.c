@@ -83,14 +83,6 @@ real source_movement_player_gravity(long index, real stock)
     return source_movement_player(index) ? SOURCE_GRAVITY : stock;
 }
 
-real source_movement_fall_velocity(long index, real velocity, real stock_gravity)
-{
-    /* v squared = 2gh: retain Halo's fall-distance thresholds under Source gravity.
-       Change only damage evaluation, never the actual velocity. */
-    if (stock_gravity > 0.f && source_movement_biped(index))
-        return velocity * (real)sqrt(stock_gravity / SOURCE_GRAVITY);
-    return velocity;
-}
 
 void source_movement_update(void)
 {
