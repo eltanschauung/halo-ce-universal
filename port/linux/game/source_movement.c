@@ -169,7 +169,7 @@ real source_movement_self_damage(struct damage_data const *damage, long index)
     name = tag_get_name(damage->definition_index);
     if (name && (!strcmp(name, "weapons\\frag grenade\\explosion") ||
         !strcmp(name, "weapons\\plasma grenade\\explosion") ||
-        !strcmp(name, "weapons\\rocket launcher\\explosion"))) return 0.2f;
+        !strcmp(name, "weapons\\rocket launcher\\explosion"))) return 0.6f;
     return 1.f;
 }
 

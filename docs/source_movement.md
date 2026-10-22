@@ -44,7 +44,7 @@ bit (1024) are sent only to peers acknowledging that feature. Joining an older
 fork retries its older feature masks without ever probing an upstream host.
 
 For enabled players, their own frag grenade, plasma grenade and rocket
-launcher explosion damage is multiplied by 0.2 before shield absorption and
+launcher explosion damage is multiplied by 0.6 before shield absorption and
 body spillover. Damage to other players, AI, vehicles and unrelated damage
 effects keeps its original behavior. A plasma grenade's attached instant-kill
 behavior is not made harmless by this numeric damage multiplier.
@@ -111,7 +111,8 @@ skipped); 62 focused movement, prediction and capability checks include an
 additional blast-air-control regression. A controlled retail frag explosion
 produced about 0.225 world units/tick upward impulse standing and 0.27778
 crouched, versus stock Halo's 0.04666, while health damage remained reduced
-from about 120 to 24. Native matching-fork, mixed-upstream and upstream-host
+from about 120 to 24 at the then-current 80% reduction. The current
+self-damage multiplier is 0.6 (40% reduction), independent of blast force. Native matching-fork, mixed-upstream and upstream-host
 sessions retained their negotiated movement behavior. A host-authoritative
 loose-grenade chain explosion owned by a remote player produced upward speeds
 of 0.21094 (host) and 0.21084 (client) at simulated 200 ms RTT, exercising the
