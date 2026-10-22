@@ -30,7 +30,9 @@ velocity according to its projection on the wish direction.
 
 Fall-damage checks convert velocity by sqrt(stock gravity / Source gravity),
 keeping Halo's fall-distance thresholds without altering actual movement.
-This includes the airborne maximum-distance death check used before landing.
+Source players skip the airborne maximum-speed instant kill: campaign scripts
+can deliberately delay a transition after a drop trigger, as on Keyes.
+Landing damage and world kill volumes remain active.
 
 Gravity is split around collision movement. Prediction's ballistic bounds
 use the selected player's gravity and jump speed; the existing host-derived

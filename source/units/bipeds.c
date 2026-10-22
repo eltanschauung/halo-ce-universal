@@ -839,7 +839,10 @@ static void biped_falling_damage(
 				object_cause_damage(&damage, biped_index, NONE, NONE, NONE, NULL);
 			}
 		}
-		else if (!TEST_FLAG(definition->biped.flags, _biped_flying_bit) &&
+		/* port: Source falls can outpace a scripted transition's delay. Keep
+           impact damage, but do not kill these players merely for falling fast. */
+        else if (!source_movement_player(biped->unit.player_index) &&
+            !TEST_FLAG(definition->biped.flags, _biped_flying_bit) &&
 			falling_velocity <
 				-falling_damage->runtime_maximum_falling_velocity)
 		{
