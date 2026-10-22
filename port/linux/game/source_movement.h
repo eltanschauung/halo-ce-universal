@@ -7,6 +7,9 @@
 #define SOURCE_JUMP_SPEED (268.3281573f / SOURCE_UNITS_PER_WORLD / TICKS_PER_SECOND)
 #define SOURCE_GRAVITY (800.f / SOURCE_UNITS_PER_WORLD / (TICKS_PER_SECOND * TICKS_PER_SECOND))
 struct damage_data;
+boolean source_movement_blast(struct damage_data const *damage, long biped_index, real_vector3d *impulse);
+void source_movement_blast_impulse(real_point3d const *feet, real_point3d const *explosion,
+    real crouch, boolean airborne, boolean rocket, real damage, real radius, real_vector3d *impulse);
 void source_movement_reset(void);
 void source_movement_update(void);
 real source_movement_fall_velocity(long biped_index, real velocity, real stock_gravity);

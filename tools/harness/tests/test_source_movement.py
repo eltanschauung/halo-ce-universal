@@ -16,7 +16,7 @@ def generated(fault=None):
     if fault == 'friction':
         code = mutated(code, 'speed > 0.f && !jumping', 'speed > 0.f')
     if fault == 'self':
-        code = mutated(code, 'damage->owner_player_index != biped->unit.player_index', 'FALSE')
+        code = code.replace('damage->owner_player_index != biped->unit.player_index', 'FALSE', 1)
     if fault == 'replay':
         code = mutated(code, 'game_connection() == _game_connection_network_client || !biped', '!biped')
     if fault == 'peer':
@@ -29,7 +29,7 @@ def generated(fault=None):
 
 
 CASES = ['ground', 'friction', 'stop', 'reverse', 'diagonal', 'crouch', 'stock-speed', 'modifiers', 'air-coast',
-         'air-cap', 'air-strafe', 'bhop', 'fall-distance', 'stock-fall', 'gravity', 'jump', 'stock-jump',
+         'air-cap', 'air-strafe', 'bhop', 'blast-air-control', 'blast-formula', 'blast-crouch', 'blast-rocket', 'blast-falloff', 'blast-admission', 'blast-legacy', 'fall-distance', 'stock-fall', 'gravity', 'jump', 'stock-jump',
          'solo', 'mixed-host', 'upstream-host', 'policy', 'bad-policy', 'slot-reuse',
          'reset', 'send', 'excluded', 'self-damage', 'other-damage', 'replay']
 

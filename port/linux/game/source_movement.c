@@ -8,6 +8,8 @@
 #include "main/main.h"
 #include "math/real_math.h"
 #include "objects/damage.h"
+#include "game/game_globals.h"
+#include "objects/damage_effect_definitions.h"
 #include "tag_files/tag_groups.h"
 #include "units/bipeds.h"
 #include "units/biped_definitions.h"
@@ -169,4 +171,42 @@ real source_movement_self_damage(struct damage_data const *damage, long index)
         !strcmp(name, "weapons\\plasma grenade\\explosion") ||
         !strcmp(name, "weapons\\rocket launcher\\explosion"))) return 0.2f;
     return 1.f;
+}
+
+boolean source_movement_blast(struct damage_data const *damage, long index, real_vector3d *impulse)
+{
+    struct biped_datum *biped = biped_try_and_get(index);
+    struct player_datum *player, *host;
+    struct damage_effect_definition *effect;
+    char const *name;
+    long local;
+    boolean rocket;
+    if (!biped || damage->owner_player_index == NONE ||
+        damage->owner_player_index != biped->unit.player_index ||
+        !source_movement_biped(index) || damage->definition_index == NONE ||
+        !TEST_FLAG(damage->flags, _damage_area_of_effect_bit)) return FALSE;
+    if (game_connection() == _game_connection_network_client)
+    {
+        if (!network_extensions_source_blast(NONE)) return FALSE;
+    }
+    else if (game_connection() == _game_connection_network_server)
+    {
+        local = local_player_get_player_index(0);
+        host = local == NONE ? NULL : player_try_and_get(local);
+        player = player_try_and_get(biped->unit.player_index);
+        if (!host || !player ||
+            (host->network_player_data.machine_index != player->network_player_data.machine_index &&
+            !network_extensions_source_blast(player->network_player_data.machine_index))) return FALSE;
+    }
+    name = tag_get_name(damage->definition_index);
+    if (!name) return FALSE;
+    rocket = !strcmp(name, "weapons\\rocket launcher\\explosion");
+    if (!rocket && strcmp(name, "weapons\\frag grenade\\explosion") &&
+        strcmp(name, "weapons\\plasma grenade\\explosion")) return FALSE;
+    effect = damage_effect_definition_get(damage->definition_index);
+    source_movement_blast_impulse(&biped->object.position, &damage->epicenter,
+        biped->biped.crouch, TEST_FLAG(biped->biped.flags, _biped_airborne_bit),
+        rocket, effect->damage.damage_upper_bound * MAX(damage->multiplier, 0.f),
+        effect->cutoff_radius, impulse);
+    return TRUE;
 }

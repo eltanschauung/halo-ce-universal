@@ -19,14 +19,20 @@ enum {_material_effect_biped_jump, _game_difficulty_value_infection_forms};
 struct distributed_message_header {word header; byte type,count;long game_time;};
 #define GET_MESSAGE_TYPE(h) (((h)>>2)&3)
 struct player_datum {short identifier,local_player_index;long unit_index;boolean quit_out_of_game;real speed_multiplier;struct {short machine_index;} network_player_data;};
-struct biped_datum {long definition_index;struct {long parent_object_index;unsigned long damage_flags;real_vector3d translational_velocity,up;} object;struct {long player_index,actor_index,swarm_actor_index;unsigned long flags,control_flags;real body_stun;real_vector3d throttle;struct {int state;}animation;}unit;struct {unsigned long flags;int landing,jump_recovery_timer,support_surface_index;real crouch;}biped;};
+struct biped_datum {long definition_index;struct {long parent_object_index;unsigned long damage_flags;real_point3d position;real_vector3d translational_velocity,up;} object;struct {long player_index,actor_index,swarm_actor_index;unsigned long flags,control_flags;real body_stun;real_vector3d throttle;struct {int state;}animation;}unit;struct {unsigned long flags;int landing,jump_recovery_timer,support_surface_index;real crouch;}biped;};
 enum {_unit_state_leap_start, _unit_state_leap_airborne};
 struct biped_definition {struct {unsigned long flags;real jump_velocity;}biped;};
 struct game_globals_player_information {real stun_turning_penalty;};
 struct {struct game_globals_player_information player_information;} globals;
 #define TAG_BLOCK_GET_ELEMENT(block,i,type) (block)
 #define scenario_get_game_globals() (&globals)
-struct damage_data {long definition_index,owner_player_index;};
+enum {_damage_area_of_effect_bit};
+struct damage_data {long definition_index,owner_player_index;unsigned long flags;real multiplier;real_point3d epicenter;};
+struct damage_effect_definition {real cutoff_radius;struct {real damage_upper_bound;}damage;};
+static struct damage_effect_definition blast_effect={2.f,{120.f}};
+#define damage_effect_definition_get(i) (&blast_effect)
+static boolean blast_support=1;
+static boolean network_extensions_source_blast(long m){return blast_support;}
 static struct {int super_jump,jetpack;}cheat;
 static int role,playing=1,menu,cinematic,setting=1,sends;
 static unsigned long now=1000;
@@ -81,6 +87,13 @@ int main(int argc,char **argv){CHECK(argc==2,"case");char const *case_name=argv[
  else CASE("air-cap"){source_movement_step(&v,&wish,&normal,TRUE,FALSE);CLOSE(v.i,30.f/120/30);v.i=.2;source_movement_step(&v,&wish,&normal,TRUE,FALSE);CLOSE(v.i,.2);}
  else CASE("air-strafe"){v.i=SOURCE_MOVE_SPEED;wish.i=0;wish.j=SOURCE_MOVE_SPEED;source_movement_step(&v,&wish,&normal,TRUE,FALSE);CLOSE(v.i,SOURCE_MOVE_SPEED);CHECK(v.j>0,"no air strafe");}
  else CASE("bhop"){v.i=.15;source_movement_step(&v,&wish,&normal,FALSE,TRUE);CLOSE(v.i,.15);}
+ else CASE("blast-air-control"){v.i=.24f;v.k=.15f;wish.i=0;wish.j=2.25f/30;source_movement_step(&v,&wish,&normal,TRUE,FALSE);CLOSE(v.i,.24f);CLOSE(v.j,30.f/120/30);CLOSE(v.k,.15f-SOURCE_GRAVITY*.5f);wish.j=0;source_movement_step(&v,&wish,&normal,TRUE,FALSE);CLOSE(v.i,.24f);}
+ else CASE("blast-formula"){real_point3d feet={0},explosion={0};source_movement_blast_impulse(&feet,&explosion,0,FALSE,FALSE,100,2,&v);CLOSE(v.k,675.f/3600);CLOSE(v.i,0);source_movement_blast_impulse(&feet,&explosion,1,FALSE,FALSE,100,2,&v);CLOSE(v.k,1000.f/3600);}
+ else CASE("blast-crouch"){real_point3d feet={0},explosion={.5f,0,0};source_movement_blast_impulse(&feet,&explosion,0,TRUE,FALSE,80,2,&v);real stand=v.k;source_movement_blast_impulse(&feet,&explosion,1,TRUE,FALSE,80,2,&v);CHECK(v.k>stand,"crouch failed to boost blast");CHECK(v.i<0,"wrong push direction");}
+ else CASE("blast-rocket"){real_point3d feet={0},explosion={0};source_movement_blast_impulse(&feet,&explosion,0,FALSE,TRUE,90,2,&v);CLOSE(v.k,450.f/3600);source_movement_blast_impulse(&feet,&explosion,0,TRUE,TRUE,90,2,&v);CLOSE(v.k,900.f/3600);}
+ else CASE("blast-falloff"){real_point3d feet={0},explosion={0};source_movement_blast_impulse(&feet,&explosion,0,TRUE,TRUE,50,2,&v);real full=v.k;explosion.z=-2;source_movement_blast_impulse(&feet,&explosion,0,TRUE,TRUE,50,2,&v);CLOSE(v.k,full*.5f);explosion.z=-3;source_movement_blast_impulse(&feet,&explosion,0,TRUE,TRUE,50,2,&v);CLOSE(v.k,0);}
+ else CASE("blast-admission"){struct damage_data d={0,handles[0],1,1,{0}};CHECK(source_movement_blast(&d,10,&v),"solo self blast missing");d.owner_player_index=handles[1];CHECK(!source_movement_blast(&d,10,&v),"other player blast changed");d.owner_player_index=handles[0];d.flags=0;CHECK(!source_movement_blast(&d,10,&v),"direct hit changed");d.flags=1;d.definition_index=3;CHECK(!source_movement_blast(&d,10,&v),"bullet changed");}
+ else CASE("blast-legacy"){role=2;support[2]=TRUE;body.unit.player_index=handles[1];struct damage_data d={0,handles[1],1,1,{0}};blast_support=0;CHECK(!source_movement_blast(&d,10,&v),"old fork got new blast");blast_support=1;CHECK(source_movement_blast(&d,10,&v),"new fork missing blast");}
  else CASE("fall-distance"){real stock=.003f;real height=12.f;real source_speed=sqrtf(2*SOURCE_GRAVITY*height);real stock_speed=sqrtf(2*stock*height);CHECK(source_speed>stock_speed,"no gravity difference");CLOSE(source_movement_fall_velocity(10,-source_speed,stock),-stock_speed);CLOSE(source_movement_fall_velocity(10,source_speed,stock),stock_speed);CLOSE(source_movement_fall_velocity(10,-source_speed,0),-source_speed);}
  else CASE("stock-fall"){setting=0;CLOSE(source_movement_fall_velocity(10,-.5f,.003f),-.5f);setting=1;body.unit.player_index=NONE;CLOSE(source_movement_fall_velocity(10,-.5f,.003f),-.5f);}
  else CASE("gravity"){source_movement_step(&v,&wish,&normal,TRUE,FALSE);CLOSE(v.k,-SOURCE_GRAVITY*.5);CLOSE(source_movement_player_gravity(handles[0],.001),SOURCE_GRAVITY);}

@@ -46,3 +46,38 @@ void source_movement_step(real_vector3d *velocity, real_vector3d const *wish,
         velocity->k -= normal->k / 128.f;
     }
 }
+
+/* Independently expressed TF2 DamageForce / ApplyPushFromDamage equations.
+   Constants and geometry are documented in docs/source_movement.md. */
+void source_movement_blast_impulse(real_point3d const *feet, real_point3d const *explosion,
+    real crouch, boolean airborne, boolean rocket, real damage, real radius, real_vector3d *impulse)
+{
+    real_vector3d direction;
+    real center_height, force_height, distance, feet_distance, force, scale;
+    crouch = MAX(0.f, MIN(crouch, 1.f));
+    center_height = (82.f - 20.f * crouch) * 0.5f / SOURCE_UNITS_PER_WORLD;
+    force_height = 82.f - 27.f * crouch;
+    direction.i = feet->x - explosion->x;
+    direction.j = feet->y - explosion->y;
+    direction.k = feet->z - explosion->z;
+    feet_distance = (real)sqrt(direction.i * direction.i + direction.j * direction.j + direction.k * direction.k);
+    direction.k += center_height;
+    distance = (real)sqrt(direction.i * direction.i + direction.j * direction.j + direction.k * direction.k);
+    distance = MIN(distance, feet_distance);
+    /* Valve offsets the inflictor downward 10 units when choosing push direction. */
+    direction.k += 10.f / SOURCE_UNITS_PER_WORLD;
+    normalize3d(&direction);
+    scale = rocket ? (airborne ? 10.f : 5.f) : 9.f;
+    damage = MAX(damage, 0.f);
+    if (radius > 0.f)
+        damage *= 1.f - 0.5f * MIN(distance / radius, 1.f);
+    else
+        damage = 0.f;
+    if (distance > radius) damage = 0.f;
+    if (!rocket) damage *= 0.75f;
+    force = MIN(1000.f, damage * (82.f / force_height) * scale);
+    force /= SOURCE_UNITS_PER_WORLD * TICKS_PER_SECOND;
+    impulse->i = direction.i * force;
+    impulse->j = direction.j * force;
+    impulse->k = direction.k * force;
+}

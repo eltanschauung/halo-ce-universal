@@ -24,7 +24,7 @@ enum
     EXT_AIM = 1, EXT_SUICIDE = 2, EXT_DEATH = 4, EXT_SOCIAL = 8,
     EXT_SPRAY = 16, EXT_MODELS = 32, EXT_NEEDLER = 64, EXT_ASSAULT_RIFLE = 128,
     EXT_RESPAWN = 256, EXT_GRENADE_COLLISION = 512, EXT_SOURCE_MOVEMENT = 1024,
-    EXT_PROJECTILES = 2048, EXT_ALL = 4095, EXT_REVISION = 1
+    EXT_PROJECTILES = 2048, EXT_SOURCE_BLAST = 4096, EXT_ALL = 8191, EXT_REVISION = 1
 };
 #define EXT_MAGIC 0x45544C45UL /* ELTE */
 struct extension_message
@@ -126,6 +126,15 @@ boolean network_extensions_allows(long machine, byte type)
         machine < HALO_PORT_MAXIMUM_NETWORK_MACHINES && (machine_features[machine] & feature) != 0;
 }
 
+/* This changes an existing aftermath calculation, not any core message. */
+boolean network_extensions_source_blast(long machine)
+{
+    if (machine == NONE)
+        return game_connection() == _game_connection_network_client && (host_features & EXT_SOURCE_BLAST) != 0;
+    return game_connection() == _game_connection_network_server && machine >= 0 &&
+        machine < HALO_PORT_MAXIMUM_NETWORK_MACHINES && (machine_features[machine] & EXT_SOURCE_BLAST) != 0;
+}
+
 void network_extensions_update(void)
 {
     struct extension_message message;
@@ -139,12 +148,12 @@ void network_extensions_update(void)
     message.magic = EXT_MAGIC;
     message.revision = EXT_REVISION;
     /* Older forks reject unknown bits: retry their original feature set. */
-    message.features = hello_attempts < 2 ? EXT_ALL : hello_attempts < 4 ? 2047 : hello_attempts < 6 ? 1023 : hello_attempts < 8 ? 511 : hello_attempts < 10 ? 255 : hello_attempts < 12 ? 127 : hello_attempts < 14 ? 63 : 31;
+    message.features = hello_attempts < 2 ? EXT_ALL : hello_attempts < 4 ? 4095 : hello_attempts < 6 ? 2047 : hello_attempts < 8 ? 1023 : hello_attempts < 10 ? 511 : hello_attempts < 12 ? 255 : hello_attempts < 14 ? 127 : hello_attempts < 16 ? 63 : 31;
     build_message_header(&message.header.header, sizeof(message), 2, 0);
     if (network_distributed_client_send_reliably(&message, sizeof(message)))
     {
         hello_sent = TRUE;
-        if (hello_attempts < 14) hello_attempts++;
+        if (hello_attempts < 18) hello_attempts++;
         last_hello = now;
     }
 }

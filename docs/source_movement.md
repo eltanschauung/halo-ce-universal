@@ -46,10 +46,35 @@ fork retries its older feature masks without ever probing an upstream host.
 For enabled players, their own frag grenade, plasma grenade and rocket
 launcher explosion damage is multiplied by 0.2 before shield absorption and
 body spillover. Damage to other players, AI, vehicles and unrelated damage
-effects keeps its original behavior. Explosion impulse is independent of
-this multiplier and is not reduced. Network clients do not rescale the
-host's damage replay. A plasma grenade's attached instant-kill behavior is
-not made harmless by this numeric damage multiplier.
+effects keeps its original behavior. A plasma grenade's attached instant-kill
+behavior is not made harmless by this numeric damage multiplier.
+
+Self-blast impulses use independently expressed TF2 DamageForce and
+ApplyPushFromDamage equations. The reference hull is 48 by 48 by 82 Source
+units, crouching lowers its center to a 62-unit hull, and the self-force volume
+uses the upstream 55-unit crouched height. Crouch transitions interpolate
+between these endpoints using Halo's actual crouch fraction. Push direction
+runs from the explosion (offset downward 10 Source units) toward that center,
+without Halo's fixed 0.45 upward bias or its living-biped half-force reduction.
+Force uses damage times the standing-to-current hull volume ratio, capped at
+1000 Source units/s. Grenades use TF2's self-force scale 9 and 0.75 self-grenade
+factor. Rockets use Soldier's grounded scale 5 and airborne scale 10. Distance
+falloff uses the closer of feet and hull center, declining to half at the
+radius. Damage reduction is independent of this force calculation.
+
+Halo explosion damage/radius tags supply the weapon parameters. Existing Halo
+blast occlusion and damage admission remain in force; this does not replace
+weapons with TF2 projectiles. Halo's swept capsule, 30 Hz clock, maps and player
+running speeds remain, so this is not an exact reproduction of a complete
+Source game. TF2 and HL2 also have distinct weapon and movement rules.
+
+The blast calculation is negotiated separately (capability bit 4096) through
+the existing optional handshake, with retries for older fork feature masks.
+No core network message or protocol version changes. Older fork players keep
+the previous Halo blast response. New clients replay the normal authoritative
+damage event with the same calculation only when their host supports it.
+Existing Source air acceleration preserves blast momentum and uses the 30-unit
+wish projection cap; it does not clamp total airborne speed to running speed.
 
 ## References
 
@@ -62,6 +87,8 @@ These primary sources document the algorithms and the integration design:
 - Valve's [Source movement](https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/game/shared/gamemovement.cpp):
   `Accelerate`, `AirAccelerate`, `Friction`, `StartGravity`, `FinishGravity`.
 - Valve's [movement defaults](https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/game/shared/movevars_shared.cpp).
+- Valve's [TF2 player damage/force implementation](https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/game/server/tf/tf_player.cpp)
+  (`DamageForce`, `ApplyPushFromDamage`) and [radius damage](https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/game/shared/tf/tf_gamerules.cpp).
 - Valve's [TF2 movement](https://github.com/ValveSoftware/source-sdk-2013/blob/master/src/game/shared/tf/tf_gamemovement.cpp)
   for the jump scale; HL2 and TF2 are distinct games, rather than one exact
   movement specification.
@@ -76,3 +103,18 @@ bound tests include 100 ms and 200 ms round trips; the existing elevator tests
 also pass. A controlled retail frag explosion dealt approximately 120 damage
 with stock rules and 24 with Source rules, with the same initial upward impulse
 of 0.0466667 world units/tick. Android and web SDKs were not configured locally.
+
+## Self-blast validation
+
+The Windows release build and full CPU suite passed (1,531 checks, two
+skipped); 62 focused movement, prediction and capability checks include an
+additional blast-air-control regression. A controlled retail frag explosion
+produced about 0.225 world units/tick upward impulse standing and 0.27778
+crouched, versus stock Halo's 0.04666, while health damage remained reduced
+from about 120 to 24. Native matching-fork, mixed-upstream and upstream-host
+sessions retained their negotiated movement behavior. A host-authoritative
+loose-grenade chain explosion owned by a remote player produced upward speeds
+of 0.21094 (host) and 0.21084 (client) at simulated 200 ms RTT, exercising the
+existing damage aftermath replay. This is a controlled native probe, not a
+claim of exact Source networking or every weapon interaction. Android/web build
+targets are unavailable in the local Windows configuration.

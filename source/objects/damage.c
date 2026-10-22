@@ -1086,7 +1086,20 @@ static void object_damage_aftermath(
 				{
 					if (object->object.type == _object_type_biped)
 					{
-						biped_accelerate(object_index, &acceleration);
+                        /* port: negotiated Source self blasts replace Halo's biased,
+                           halved impulse; health damage remains separately scaled. */
+                        real_vector3d source_impulse;
+                        if (source_movement_blast(damage, object_index, &source_impulse))
+                        {
+                            struct biped_datum *biped = biped_get(object_index);
+                            add_vectors3d(&biped->object.translational_velocity, &source_impulse,
+                                &biped->object.translational_velocity);
+                            SET_FLAG(biped->object.flags, _object_at_rest_bit, FALSE);
+                            SET_FLAG(biped->biped.flags, _biped_airborne_bit, TRUE);
+                            SET_FLAG(biped->biped.flags, _biped_slipping_bit, TRUE);
+                        }
+                        else
+                            biped_accelerate(object_index, &acceleration);
 					}
 					else if (object->object.type == _object_type_vehicle)
 					{

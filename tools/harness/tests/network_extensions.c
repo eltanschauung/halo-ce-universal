@@ -53,6 +53,11 @@ int main(int argc,char **argv){CHECK(argc==2,"case");char const *case_name=argv[
   role=1;network_extensions_select_host(FALSE);network_extensions_update();now+=10000;network_extensions_update();CHECK(!sends,"probed upstream host");
   CHECK(!network_extensions_allows(NONE,_distributed_message_social_request),"upstream social enabled");
   role=2;CHECK(!network_extensions_allows(1,250),"upstream spray enabled");CHECK(network_extensions_allows(1,_distributed_message_map_share_offer),"core map sharing blocked");
+ } else CASE("blast") {
+  negotiate(4095);CHECK(!network_extensions_source_blast(1),"legacy fork got blast");
+  network_extensions_machine_joined(1);negotiate(EXT_ALL);CHECK(network_extensions_source_blast(1),"new fork missing blast");
+  CHECK(!network_extensions_source_blast(2),"upstream got blast");
+  network_extensions_machine_joined(1);CHECK(!network_extensions_source_blast(1),"reused slot kept blast");
  } else CASE("negotiation") {
   role=1;network_extensions_select_host(TRUE);network_extensions_update();CHECK(sends==1&&sizes[0]==16,"hello layout");
   CHECK(!network_extensions_allows(NONE,250),"enabled before ack");role=2;network_extensions_handle(1,(word*)wire[0],sizes[0],TRUE);
@@ -60,21 +65,11 @@ int main(int argc,char **argv){CHECK(argc==2,"case");char const *case_name=argv[
   role=1;network_extensions_handle(NONE,(word*)wire[1],sizes[1],TRUE);CHECK(network_extensions_allows(NONE,250),"client ack");network_extensions_update();CHECK(sends==2,"hello spam");
  } else CASE("model_capability") {
   role=1;network_extensions_select_host(TRUE);network_extensions_update();
-  CHECK(((struct extension_message *)wire[0])->features==4095,"projectile feature not advertised");
-  now+=2001;network_extensions_update();now+=2001;network_extensions_update();
-  CHECK(((struct extension_message *)wire[2])->features==2047,"Source movement fork fallback missing");
-  now+=2001;network_extensions_update();now+=2001;network_extensions_update();
-  CHECK(((struct extension_message *)wire[4])->features==1023,"grenade fork fallback missing");
-  now+=2001;network_extensions_update();now+=2001;network_extensions_update();
-  CHECK(((struct extension_message *)wire[6])->features==511,"respawn fork fallback missing");
-  now+=2001;network_extensions_update();now+=2001;network_extensions_update();
-  CHECK(((struct extension_message *)wire[8])->features==255,"old AR fork fallback missing");
-  now+=2001;network_extensions_update();now+=2001;network_extensions_update();
-  CHECK(((struct extension_message *)wire[10])->features==127,"Needler fork fallback missing");
-  now+=2001;network_extensions_update();now+=2001;network_extensions_update();
-  CHECK(((struct extension_message *)wire[12])->features==63,"model fork fallback missing");
-  now+=2001;network_extensions_update();now+=2001;network_extensions_update();
-  CHECK(((struct extension_message *)wire[14])->features==31,"old fork fallback missing");
+  CHECK(((struct extension_message *)wire[0])->features==8191,"blast feature not advertised");
+  for(int attempt=1;attempt<=8;attempt++){
+   now+=2001;network_extensions_update();now+=2001;network_extensions_update();
+   CHECK(((struct extension_message *)wire[attempt*2])->features==(8192/(1<<attempt)-1),"old fork fallback missing");
+  }
   CHECK(!network_extensions_allows(NONE,252),"model feature enabled without acknowledgement");
   role=2;negotiate(31);CHECK(!network_extensions_allows(1,252),"model sent to old fork");
   network_extensions_reset();negotiate(63);CHECK(network_extensions_allows(1,252),"model feature not enabled");
@@ -139,7 +134,7 @@ int main(int argc,char **argv){CHECK(argc==2,"case");char const *case_name=argv[
   network_extensions_handle(1,(word*)&m,17,TRUE);network_extensions_handle(1,(word*)&m,16,FALSE);
   network_extensions_handle(NONE,(word*)&m,16,TRUE);network_extensions_handle(3,(word*)&m,16,TRUE);
   m.magic++;network_extensions_handle(1,(word*)&m,16,TRUE);m=hello();m.revision++;network_extensions_handle(1,(word*)&m,16,TRUE);
-  m=hello();m.features=4096;network_extensions_handle(1,(word*)&m,16,TRUE);m=hello();m.header.count=2;network_extensions_handle(1,(word*)&m,16,TRUE);
+  m=hello();m.features=8192;network_extensions_handle(1,(word*)&m,16,TRUE);m=hello();m.header.count=2;network_extensions_handle(1,(word*)&m,16,TRUE);
   CHECK(!sends&&!network_extensions_allows(1,250),"malformed negotiation accepted");
   role=1;m=hello();network_extensions_select_host(TRUE);network_extensions_handle(NONE,(word*)&m,16,TRUE);CHECK(!network_extensions_allows(NONE,250),"unsolicited ack");
  } else CASE("reset") {
