@@ -389,6 +389,7 @@ symbols in this file:
 #include "halo_spray.h"
 #include "network_chat.h" /* port: port/linux/game/network_chat.c */
 #include "network_aim_assist.h" /* port: port/linux/game/network_aim_assist.c */
+#include "network_shield_effects.h" /* port: port/linux/game/network_shield_effects.c */
 #include "map_share.h" /* port: port/linux/game/map_share.c */
 #include "profile_sections.h" /* port: port/linux/include/profile_sections.h */
 #ifdef HALO_PROFILE
@@ -688,6 +689,7 @@ typedef char screenshot_and_framerate_globals_size_assert[
 	sizeof(struct _screenshot_and_framerate_globals) == 0x38B ? 1 : -1];
 
 void network_test_update(boolean main_menu_loaded, real seconds);
+#include "server_director.h" /* port: port/linux/game/server_director.c */
 
 /* ---------- prototypes */
 
@@ -3164,6 +3166,10 @@ void halt_and_catch_fire(
 	emscripten_cancel_main_loop();
 	abort();
 #endif
+	/* port: a dedicated server has no screen to halt on: its error logged,
+	it ends with exit code 1 (port/linux/game/server_director.c) */
+	if (halo_server_mode())
+		server_fatal(error_get());
 	if (!global_screenshot_count.halt_recursion_lock)
 	{
 		scenario = global_scenario_try_and_get();
@@ -3287,6 +3293,9 @@ void halt_and_catch_fire(
 void main_loop_of_death(
 	void)
 {
+	/* port: as halt_and_catch_fire, on a dedicated server */
+	if (halo_server_mode())
+		server_fatal(error_get());
 	while (TRUE)
 	{
 		input_frame_begin();
@@ -3575,6 +3584,9 @@ static boolean main_loop_iteration(
 
 			/* automated system link tests (port/linux/game/network_test.c) */
 			network_test_update(main_globals.main_menu_scenario_loaded, main_globals.seconds_elapsed);
+			/* port: a dedicated server's hosting, rotation and commands
+			(port/linux/game/server_director.c) */
+			server_update(main_globals.main_menu_scenario_loaded, main_globals.seconds_elapsed);
 			/* port: voice chat, in the lobby and in game (port/linux/game/network_voice.c) */
 			network_voice_update();
 			/* port: apply and replicate the host's mouse aim-assist policy. */
@@ -3592,6 +3604,8 @@ static boolean main_loop_iteration(
 			network_profile_rgb_update(); /* port: optional cosmetic colors */
 			{ extern void custom_models_network_update(void); custom_models_network_update(); } /* port: optional model selections */
 			network_spray_update();
+			/* port: the host's shield effects, for every machine (port/linux/game/network_shield_effects.c) */
+			network_shield_effects_update();
 			/* port: map sharing, in the lobby and in game (port/linux/game/map_share.c) */
 			map_share_update();
 			/* port: network games' text chat (port/linux/game/network_chat.c) */
@@ -3629,7 +3643,17 @@ static boolean main_loop_iteration(
 			}
 			profile_scope_exit(main_network_start_frame_section)
 
-			profile_scope(main_update_time_section, main_update_time();)
+			/* port: a dedicated server's frames paced by its clock, with no
+			display to wait for (port/linux/src/server_mode.c) */
+			if (halo_server_mode())
+			{
+				server_mode_pace_frame();
+				profile_scope(main_update_time_section, main_update_time_unthrottled();)
+			}
+			else
+			{
+				profile_scope(main_update_time_section, main_update_time();)
+			}
 			profile_scope_enter(main_ui_update_section)
 			process_ui_widgets();
 			bink_playback_update();
@@ -3704,14 +3728,16 @@ static boolean main_loop_iteration(
 					profile_render_end();
 				}
 			}
-			else
+			/* port: nothing drawn on a dedicated server, nor waited for */
+			else if (!halo_server_mode())
 			{
 				profile_render_start();
 				main_pregame_render();
 				profile_render_end();
 			}
 
-			profile_scope(main_throttle_section, main_rasterizer_throttle();)
+			if (!halo_server_mode())
+				profile_scope(main_throttle_section, main_rasterizer_throttle();)
 
 			if (render_frame && !debug_no_drawing)
 			{
@@ -3747,3 +3773,41 @@ static boolean main_loop_iteration(
 }
 
 /* ---------- private code */
+
+/* port: what this build is, which a client tells the hosts it joins
+(network_distributed.c's _distributed_message_client_build): its number (0
+for a build CI did not number), configuration, the GitHub repository it is
+made from (owner/name; empty if not known) and the label it shows */
+#ifndef HALO_BUILD_NUMBER
+#define HALO_BUILD_NUMBER 0
+#endif
+#ifndef HALO_BUILD_FLAVOR
+#define HALO_BUILD_FLAVOR "local"
+#endif
+#ifndef HALO_BUILD_REPOSITORY
+#define HALO_BUILD_REPOSITORY ""
+#endif
+void main_build_identity(
+	long *number,
+	char *flavor,
+	size_t flavor_size,
+	char *repository,
+	size_t repository_size,
+	char *version,
+	size_t version_size)
+{
+	*number = HALO_BUILD_NUMBER;
+	_snprintf(flavor, flavor_size - 1, "%s", HALO_BUILD_FLAVOR);
+	flavor[flavor_size - 1] = 0;
+	_snprintf(repository, repository_size - 1, "%s", HALO_BUILD_REPOSITORY);
+	repository[repository_size - 1] = 0;
+#ifdef HALO_NATIVE_BUILD_INFO
+	main_native_build_label(version, version_size);
+#else
+	if (HALO_BUILD_NUMBER > 0)
+		_snprintf(version, version_size - 1, "OpenCE Web | build %d (%s)", HALO_BUILD_NUMBER, HALO_BUILD_FLAVOR);
+	else
+		_snprintf(version, version_size - 1, "OpenCE Web | local build (%s)", HALO_BUILD_FLAVOR);
+	version[version_size - 1] = 0;
+#endif
+}

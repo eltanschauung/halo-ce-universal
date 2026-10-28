@@ -29,7 +29,7 @@ def generated(control=None):
     source = read('port/linux/game/network_distributed.c')
     functions = {name: function(source, name) for name in
                  ['network_distributed_handle_message', 'distributed_printable',
-                  'distributed_write_player_record', 'network_distributed_ban', 'network_distributed_kick']}
+                  'distributed_write_record', 'distributed_write_player_record', 'network_distributed_ban', 'network_distributed_kick']}
     # Stop immediately after the real admission guard, recording entry into
     # decoding. No simulated implementation of the guard or packet handlers.
     functions['network_distributed_handle_message'] = functions['network_distributed_handle_message'].split(

@@ -804,14 +804,11 @@ static void hud_draw_multitexture_overlay(
 		{
 		case _hud_multitexture_overlay_effector_source_player_pitch:
 			{
-				long unit_index = local_player_get_player_index(local_player_index) == NONE ?
-					NONE :
-					player_get(local_player_get_player_index(local_player_index))->unit_index;
-				real_vector3d direction;
+				/* port: the scope's ticks follow the view. The unit's aim
+				changes once a tick, so the ticks stepped across the picture. */
 				real_euler_angles2d angles;
 
-				unit_get_aiming_vector(unit_index, &direction);
-				euler_angles2d_from_vector3d(&angles, &direction);
+				euler_angles2d_from_vector3d(&angles, &render.camera.forward);
 				source_value = angles.pitch;
 			}
 			break;
@@ -1624,7 +1621,11 @@ static void hud_draw_bitmap_internal(
 		_shader_framebuffer_blend_function_alpha_multiply_add;
 	parameters.map[0] = (struct bitmap_data *)bitmap;
 
+	/* port: shared CE HUD sheets need meter channels only for this draw
+	(port/linux/src/xbox_textures.c), leaving their static artwork intact. */
+	halo_custom_edition_hud_meter(meter_parameters && custom_edition_cache_tags_loaded());
 	rasterizer_psuedo_dynamic_screen_quad_draw(&parameters, vertices);
+	halo_custom_edition_hud_meter(FALSE); /* port: end the CE meter draw scope */
 
 	match_assert_stack_frame("c:\\halo\\SOURCE\\interface\\hud_draw.c", 985);
 
@@ -1986,6 +1987,11 @@ void hud_draw_meter_bitmap(
 		meter_parameters.tint_color = real_alpha_intensity_to_pixel32(
 			PIN(meter->fade, 0.0f, 1.0f),
 			PIN(1.0f-meter->opacity, 0.0f, 1.0f));
+		/* port: PC meter shading does not multiply the emitted color by
+		the Xbox opacity tint. Keep this compatibility limited to the CE
+		maps identified as depending on Gearbox meters. */
+		if (custom_edition_cache_relies_on(_custom_edition_behaviour_gearbox_meters))
+			meter_parameters.tint_color |= 0x00FFFFFF;
 		meter_parameters.gradient = 1.0f;
 		meter_parameters.flash_color_is_negative = FALSE;
 		meter_parameters.tint_mode_2 = TRUE;

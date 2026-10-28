@@ -31,6 +31,9 @@ typedef int pthread_mutex_t;
 static void pthread_mutex_lock(pthread_mutex_t *m) {(void)m;}
 static void pthread_mutex_unlock(pthread_mutex_t *m) {(void)m;}
 #endif
+#include "posix.h"
+int posix_command_line_argument(int index, char *buffer, posix_ulong size) {(void)index;(void)buffer;(void)size;return 0;}
+int posix_server_private_file(const char *path) {(void)path;return 1;}
 static void platform_log(const char *f, ...) {(void)f;}
 static void console_printf(int b,const char *f,...) {(void)b;(void)f;}
 static void console_warning(const char *f,...) {(void)f;}

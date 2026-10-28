@@ -41,7 +41,7 @@ Gravity is split around collision movement. Prediction's ballistic bounds
 use the selected player's gravity and jump speed; the existing host-derived
 speed envelope and position validation remain in force. Policies use shared
 absolute player slots and machine IDs, then bind to local datum handles;
-handles themselves are not portable between machines. Upstream protocol 32
+handles themselves are not portable between machines. Upstream protocol 39
 and core message layouts are unchanged. The private message (241) and feature
 bit (1024) are sent only to peers acknowledging that feature. Joining an older
 fork retries its older feature masks without ever probing an upstream host.
