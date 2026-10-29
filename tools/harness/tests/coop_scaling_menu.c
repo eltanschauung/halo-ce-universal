@@ -54,7 +54,7 @@ int main(int argc,char **argv)
    CHECK(row[4].visible==(mode==1||pickups==1||vehicles==1),"multiplier visibility");
    CHECK(list.focused_child==&row[1],"focus changed");
    for(int i=0;i<ROWS;i++){
-    if(row[i].visible){CHECK(row[i].vertical_offset==y,"gap or overlap at %s",rows[i]);y+=30;}
+    if(row[i].visible){CHECK(row[i].vertical_offset==y,"gap or overlap at %s",rows[i]);y+=24;}
     CHECK(label[i].vertical_offset==4&&spinner[i].vertical_offset==1&&clone[i].vertical_offset==2,
      "relative descendant positions %s",rows[i]);
     CHECK(row[i].next==(i<ROWS-1?&row[i+1]:NULL),"row order changed");

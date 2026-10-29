@@ -80,8 +80,8 @@ enum _distributed_message_coop_sounds_retired 67
 enum _distributed_message_coop_vehicle_effect 248
 enum _distributed_message_damage_animations 75
 enum _distributed_message_damage_events 10
-enum _distributed_message_fork_capabilities 240
 enum _distributed_message_fire_origins 93
+enum _distributed_message_fork_capabilities 240
 enum _distributed_message_game_state 7
 enum _distributed_message_grenade_collision_policy 249
 enum _distributed_message_hit_reports 11
@@ -100,11 +100,13 @@ enum _distributed_message_pings 19
 enum _distributed_message_player_inputs 14
 enum _distributed_message_player_prediction 1
 enum _distributed_message_player_statistics 3
+enum _distributed_message_projectiles 255
 enum _distributed_message_relayed_actions 15
+enum _distributed_message_shield_effects 91
 enum _distributed_message_social_line 245
 enum _distributed_message_social_request 244
 enum _distributed_message_social_scores 246
-enum _distributed_message_shield_effects 91
+enum _distributed_message_source_movement 241
 enum _distributed_message_structure_bsp 65
 enum _distributed_message_suicide_request 242
 enum _distributed_message_unit_states 2
@@ -313,4 +315,4 @@ struct distributed_voice_down e3751d692f16
 struct distributed_voice_up 3d74ee44e4cb
 struct distributed_votekick_request d5f913f22d81
 struct distributed_votekick_status 966041386843
-struct game_variant_options 04868b5f4064
+struct game_variant_options 0e258e4cf85b
