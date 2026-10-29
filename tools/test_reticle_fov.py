@@ -19,6 +19,8 @@ typedef struct {real x,y;} real_point2d;
 #define MIN(a,b) ((a)<(b)?(a):(b))
 static short hud_draw_last_left;
 static void passenger_camera_reticle_offset(point2d *point){(void)point;}
+static boolean custom_edition_cache_tags_loaded(void){return FALSE;}
+static void halo_custom_edition_hud_meter(boolean enabled){CHECK(!enabled);}
 typedef struct {real i,j;} real_vector2d;
 typedef struct {real x0,y0,x1,y1;} real_rectangle2d;
 struct bitmap_data {short width,height;point2d registration_point;};
